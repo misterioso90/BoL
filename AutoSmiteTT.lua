@@ -4,7 +4,17 @@ Object TT Info: http://pastebin.com/zhDfUzPg
 
 0.1 - First Release (Smite test)
 0.2 - Nunu Q added
-0.2a - Fixed some damages]]
+0.2a - Fixed some damages
+0.2b - Fixed Draws
+0.3 - Added NoSmite Nunu]]
+
+--[[TO-DO
+
+- Fix NoSmite mode bugs
+- Add Trundle Smite with low health (Passive)
+- Add Chogath R
+
+]]
 
 gameState = GetGame()
 if gameState.map.shortName ~= "twistedTreeline" then return end
@@ -25,43 +35,57 @@ local WolfL, GolemL, WraighL -- Western Camps
 local WolfR, GolemR, WraighR -- Eastern Camps
 
 -- Code
+function CheckSmite()
+	if myHero:GetSpellData(SUMMONER_1).name:find("Smite") then SmiteSlot = SUMMONER_1
+		elseif myHero:GetSpellData(SUMMONER_2).name:find("Smite") then SmiteSlot = SUMMONER_2 end
+end
 
 function OnLoad()
-    if myHero:GetSpellData(SUMMONER_1).name:find("Smite") then SmiteSlot = SUMMONER_1
-		elseif myHero:GetSpellData(SUMMONER_2).name:find("Smite") then SmiteSlot = SUMMONER_2 end
-		
+
+    CheckSmite()
 	if myHero.charName == "Nunu" or SmiteSlot or not turnoff then
-                SmiteTT = scriptConfig("AutoSmite TT 0.2", "autosmiteTT")
+                SmiteTT = scriptConfig("AutoSmite TT 0.3", "autosmiteTT")
                 SmiteTT:addParam("switcher", "Switcher Hotkey", SCRIPT_PARAM_ONKEYTOGGLE, (SmiteSlot ~= nil), 78)
                 SmiteTT:addParam("hold", "Hold Hotkey (CTRL)", SCRIPT_PARAM_ONKEYDOWN, false, 17)
-                SmiteTT:addParam("active", "AutoSmiteTT Active", SCRIPT_PARAM_INFO, false)
+                SmiteTT:addParam("active", "AutoSmite", SCRIPT_PARAM_INFO, false)
+				SmiteTT:permaShow("active")
+				
+				if myHero.charName == "Nunu" then
+				SmiteTT:addParam("nosmite", "Desactivate Smite", SCRIPT_PARAM_ONOFF, false)
+				SmiteTT:permaShow("nosmite")
+				end
+				
 				SmiteTT:addParam("vilemaw", "AutoSmite Vilemaw", SCRIPT_PARAM_ONOFF, true)
                 SmiteTT:addParam("drawrange", "Draw Smite Range", SCRIPT_PARAM_ONOFF, true)
                 SmiteTT:addParam("drawcircles", "Draw Circles", SCRIPT_PARAM_ONOFF, true)
                 SmiteTT:addParam("drawtext", "Draw Text", SCRIPT_PARAM_ONOFF, true)
-                SmiteTT:permaShow("active")
                
                 ASLoadMinions()
                 SmiteIsOn = true
-                PrintChat(" >> AutoSmite TT 0.2 by BotHappy")
+                PrintChat(" >> AutoSmite TT 0.3 by BotHappy")
         end
 end
 
 function OnTick()
-    if not SmiteIsOn then return end
+	if not SmiteIsOn then return end
+	if SmiteTT.nosmite == false then CheckSmite() end
+	if SmiteTT.nosmite == true and Vilemaw == nil then SmiteSlot = nil end
+	
 	CheckDeadMonsters()
-			
+
 	SmiteTT.active = SmiteTT.hold or SmiteTT.switcher 
-	        
-    if not SmiteTT.active and SmiteTT.vilemaw and Vilemaw ~= nil then SmiteTT.active = true end
+
+    if not SmiteTT.active and SmiteTT.vilemaw and Vilemaw ~= nil then 
+		SmiteTT.active = true
+		SmiteTT.nosmite = false end
+		
+	CanUseQ = (myHero.charName == "Nunu" and myHero:CanUseSpell(_Q) == READY)
 	
     SmiteDamage = 460+30*myHero.level
 	qDamage = 500+125*(myHero:GetSpellData(_Q).level-1)
 	MixDamage = qDamage+SmiteDamage
-	
-	CanUseQ = (myHero.charName == "Nunu" and myHero:CanUseSpell(_Q) == READY)
-	
-    if SmiteSlot ~= nil then CanUseSmite = (myHero:CanUseSpell(SmiteSlot) == READY) end
+
+	if SmiteSlot ~= nil then CanUseSmite = (myHero:CanUseSpell(SmiteSlot) == READY) end
   
     if SmiteTT.active and not myHero.dead and (CanUseSmite or CanUseQ) then
         if Vilemaw ~= nil then CheckMonster(Vilemaw) end
@@ -98,7 +122,7 @@ function OnDraw()
     if SmiteSlot ~= nil and SmiteTT.active and SmiteTT.drawrange and not myHero.dead then
         DrawCircle(myHero.x, myHero.y, myHero.z, range, 0x992D3D)
     end
-		
+
 	if not myHero.dead and (SmiteTT.drawtext or SmiteTT.drawcircles) then
         if Vilemaw ~= nil then MonsterDraw(Vilemaw) end
         if GolemL ~= nil then MonsterDraw(GolemL) end
@@ -123,7 +147,8 @@ function MonsterDraw(object)
 			if CanUseQ and CanUseSmite then
                 local Qsmitehealthradius = MixDamage*100/object.maxHealth
                 DrawCircle(object.x, object.y, object.z, Qsmitehealthradius+100, 0x00FFFF)
-            elseif CanUseQ then
+			end
+            if CanUseQ then
                 local Qhealthradius = qDamage*100/object.maxHealth
                 DrawCircle(object.x, object.y, object.z, Qhealthradius+100, 0x00FFFF)
             end
@@ -132,6 +157,7 @@ function MonsterDraw(object)
             local wtsobject = WorldToScreen(D3DXVECTOR3(object.x,object.y,object.z))
             local objectX, objectY = wtsobject.x, wtsobject.y
             local onScreen = OnScreen(wtsobject.x, wtsobject.y)
+			
             if onScreen then
                 local statusdmgS = SmiteDamage*100/object.health
                 local statuscolorS = (CanUseSmite and 0xFF00FF00 or 0xFFFF0000)
@@ -144,13 +170,13 @@ function MonsterDraw(object)
                     local textsizeQ = statusdmgQ < 100 and math.floor((statusdmgQ/100)^2*20+8) or 28
                     textsizeQ = textsizeQ > 16 and textsizeQ or 16
                     DrawText(string.format("%.1f", statusdmgQ).."% - Q", textsizeQ, objectX-40, objectY+56, statuscolorQ)
-                        if smiteSlot ~= nil then
-                            local statusdmgSQ = mixDamage*100/object.health
-                            local statuscolorSQ = ((CanUseSmite and CanUseQ) and 0xFF00FF00 or 0xFFFF0000)
-                            local textsizeSQ = statusdmgSQ < 100 and math.floor((statusdmgSQ/100)^2*20+8) or 28
-                            textsizeSQ = textsizeSQ > 16 and textsizeSQ or 16
-                            DrawText(string.format("%.1f", statusdmgSQ).."% - Smite+Q", textsizeSQ, objectX-40, objectY+74, statuscolorSQ)
-						end
+                    if SmiteSlot ~= nil then
+                        local statusdmgSQ = MixDamage*100/object.health
+                        local statuscolorSQ = ((CanUseSmite and CanUseQ) and 0xFF00FF00 or 0xFFFF0000)
+                        local textsizeSQ = statusdmgSQ < 100 and math.floor((statusdmgSQ/100)^2*20+8) or 28
+                        textsizeSQ = textsizeSQ > 16 and textsizeSQ or 16
+                        DrawText(string.format("%.1f", statusdmgSQ).."% - Smite+Q", textsizeSQ, objectX-40, objectY+74, statuscolorSQ)
+					end
                 end
             end
         end
