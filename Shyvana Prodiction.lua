@@ -1,4 +1,4 @@
---[[ Shyvana E Prodiction by BotHappy
+--[[ Shyvana Prodiction by BotHappy
 
 0.1 - Prodiction Adapted to Shyvana ]]
 
