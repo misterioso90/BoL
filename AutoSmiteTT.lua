@@ -7,7 +7,8 @@ Object TT Info: http://pastebin.com/zhDfUzPg
 0.2a - Fixed some damages
 0.2b - Fixed Draws
 0.3 - Added NoSmite Nunu
-0.3a - Improved Nunu]]
+0.3a - Improved Nunu
+0.3b - Fixed bugs]]
 
 --[[TO-DO
 
@@ -43,23 +44,19 @@ function CheckSmite()
 end
 
 function Menu()
-    SmiteTT = scriptConfig("AutoSmite TT 0.3a", "autosmiteTT")
+    SmiteTT = scriptConfig("AutoSmite TT 0.3b", "autosmiteTT")
     SmiteTT:addParam("switcher", "Switcher Hotkey", SCRIPT_PARAM_ONKEYTOGGLE, (SmiteSlot ~= nil), 78)
     SmiteTT:addParam("hold", "Hold Hotkey (CTRL)", SCRIPT_PARAM_ONKEYDOWN, false, 17)
     SmiteTT:addParam("active", "AutoSmite", SCRIPT_PARAM_INFO, false)
 	SmiteTT:permaShow("active")
+	SmiteTT:addParam("nosmite", "NUNU: Desactivate Smite", SCRIPT_PARAM_ONOFF, false)
+	SmiteTT:addParam("nomix", "NUNU: Desactivate Mixed Damage", SCRIPT_PARAM_ONOFF, false)
+	SmiteTT:permaShow("nosmite")
+	SmiteTT:permaShow("nomix")
+
 	
-	if myHero.charName == "Nunu" then
-		SmiteTT:addParam("nosmite", "NUNU: Desactivate Smite", SCRIPT_PARAM_ONOFF, false)
-		SmiteTT:addParam("nomix", "NUNU: Desactivate Mixed Damage", SCRIPT_PARAM_ONOFF, false)
-		SmiteTT:permaShow("nosmite")
-		SmiteTT:permaShow("nomix")
-	end
-	
---[[	if myHero.charName == "Trundle" then
-		SmiteTT:addParam("lasthope", "TRUNDLE: Last Hope Smite", SCRIPT_PARAM_ONOFF, false)
-		SmiteTT:permaShow("lasthope")
-	end]]
+--[[SmiteTT:addParam("lasthope", "TRUNDLE: Last Hope Smite", SCRIPT_PARAM_ONOFF, false)
+	SmiteTT:permaShow("lasthope")]]
 	
 	SmiteTT:addParam("vilemaw", "AutoSmite Vilemaw", SCRIPT_PARAM_ONOFF, true)
     SmiteTT:addParam("drawrange", "Draw Smite Range", SCRIPT_PARAM_ONOFF, true)
@@ -73,7 +70,7 @@ function OnLoad()
 		Menu()
         ASLoadMinions()
         SmiteIsOn = true --Everything going well
-        PrintChat(" >> AutoSmite TT 0.3a by BotHappy")
+        PrintChat(" >> AutoSmite TT 0.3b by BotHappy")
     end
 end
 
@@ -124,17 +121,21 @@ end
 function TryToKillObjetive(object)
     if object ~= nil and not object.dead and object.visible and object.x ~= nil then
         local DistanceMonster = GetDistance(object)
-        if CanUseQ and DistanceMonster <=125+200 then
-			if object.health <= qDamage then
-			CastSpell(_Q, object)
-			elseif CanUseSmite and not SmiteTT.nosmite and DistanceMonster <= range and object.health <= SmiteDamage then
-				CastSpell(SmiteSlot, object)
-				elseif not SmiteTT.nomix and CanUseSmite and object.health <= MixDamage then
-				if DistanceMonster <=125+200 then
+		if myHero.charName == "Nunu" then
+		    if CanUseQ and DistanceMonster <=125+200 then
+				if object.health <= qDamage then
 					CastSpell(_Q, object)
+					elseif CanUseSmite and not SmiteTT.nosmite and DistanceMonster <= range and object.health <= SmiteDamage then
 					CastSpell(SmiteSlot, object)
+					elseif not SmiteTT.nomix and CanUseSmite and object.health <= MixDamage then
+					if DistanceMonster <=125+200 then
+						CastSpell(_Q, object)
+						CastSpell(SmiteSlot, object)
+					end
 				end
 			end
+		elseif CanUseSmite and not SmiteTT.nosmite and DistanceMonster <=range and object.health <= SmiteDamage then
+		CastSpell(SmiteSlot, object)
         end
     end
 end
@@ -275,5 +276,4 @@ end
 			end
 		end
 	end
-	
 end]]
