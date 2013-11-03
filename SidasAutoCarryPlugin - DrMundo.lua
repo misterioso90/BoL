@@ -1,7 +1,7 @@
 --[[Sida's Autocarry Plugin - DrMundo by BotHappy
 
 v0.1 - Initial release (WIP)
-]]
+v0.2 - Percent Selector + Harrass Mode + Fixes]]
 
 require "Collision"
 require "Prodiction"
@@ -31,7 +31,7 @@ function PluginOnLoad()
 			ProdictQ:CanNotMissMode(true, hero)
 		end
 	end
-	PrintChat(">> Time to Mundo! 0.1 Loaded")
+	PrintChat(">> Time to Mundo! 0.2 Loaded")
 end
 
 function PluginOnTick()
@@ -40,6 +40,7 @@ function PluginOnTick()
 		if (AutoCarry.MainMenu.AutoCarry or AutoCarry.MainMenu.MixedMode) then
 			ComboCast()
 		end
+		if QAble and AutoCarry.PluginMenu.Harrass then ProdictQ:EnableTarget(Target, true) end
 	end
 	if AutoCarry.PluginMenu.useR then CastREmergency() end
 end
@@ -56,10 +57,17 @@ function PluginOnDraw()
 end
 
 function Menu()
+	local HKQ = string.byte("T")
 	AutoCarry.PluginMenu:addParam("useQ", "Use Q in combo", SCRIPT_PARAM_ONOFF, true)
+	AutoCarry.PluginMenu:addParam("notQ", "Not Q if below X% health", SCRIPT_PARAM_SLICE, 7, 0, 100, 1)
 	AutoCarry.PluginMenu:addParam("useW", "Use W in combo", SCRIPT_PARAM_ONOFF, true)
+	AutoCarry.PluginMenu:addParam("notW", "Not W if below X% health", SCRIPT_PARAM_SLICE, 7, 0, 100, 1)
 	AutoCarry.PluginMenu:addParam("useE", "Use E in combo", SCRIPT_PARAM_ONOFF, true)
-	AutoCarry.PluginMenu:addParam("useR", "Auto use R (20% life)", SCRIPT_PARAM_ONOFF, false)
+	AutoCarry.PluginMenu:addParam("notE", "Not E if below X% health", SCRIPT_PARAM_SLICE, 7, 0, 100, 1)
+	AutoCarry.PluginMenu:addParam("useR", "Auto use R", SCRIPT_PARAM_ONOFF, false)
+	AutoCarry.PluginMenu:addParam("AutoRHP", "R if below X% health", SCRIPT_PARAM_SLICE, 20, 0, 100, 1)
+	AutoCarry.PluginMenu:addParam("Harrass", "Harrass with Q", SCRIPT_PARAM_ONKEYDOWN, false, HKQ)
+	AutoCarry.PluginMenu:permaShow("Harrass")
 	AutoCarry.PluginMenu:addParam("drawQ", "Draw Q Range", SCRIPT_PARAM_ONOFF, true)
 	AutoCarry.PluginMenu:addParam("drawW", "Draw W Range", SCRIPT_PARAM_ONOFF, true)
 end
@@ -73,10 +81,9 @@ function Checks()
 end
 
 function ComboCast() 
-
-	if QAble and AutoCarry.PluginMenu.useQ then ProdictQ:EnableTarget(Target, true) end
+	if QAble and AutoCarry.PluginMenu.useQ and myHero.health > (myHero.maxHealth*(AutoCarry.PluginMenu.notQ/100)) then ProdictQ:EnableTarget(Target, true) end
 	
-	if WAble and AutoCarry.PluginMenu.useW then 
+	if WAble and AutoCarry.PluginMenu.useW and myHero.health > (myHero.maxHealth*(AutoCarry.PluginMenu.notW/100)) then 
 		if wUsed == false and GetDistance(Target) <=wRange then
 			CastSpell(_W)
 		elseif GetDistance(Target) > 550 and wUsed == true then
@@ -84,7 +91,7 @@ function ComboCast()
 		end
 	end
 	
-	if EAble and AutoCarry.PluginMenu.useE then
+	if EAble and AutoCarry.PluginMenu.useE and myHero.health > (myHero.maxHealth*(AutoCarry.PluginMenu.notE/100)) then
 		if GetDistance(Target) <= eRange then
 			CastSpell(_E)
 		end
@@ -103,7 +110,7 @@ function CastQ(unit, pos, spell)
 end
 
 function CastREmergency()
-    if myHero.health < (myHero.maxHealth*(20/100)) then
+    if myHero.health < (myHero.maxHealth*(AutoCarry.PluginMenu.AutoRHP/100)) then
 		if RAble then
 			CastSpell(_R)
         end
