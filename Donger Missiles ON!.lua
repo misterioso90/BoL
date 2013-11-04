@@ -3,7 +3,8 @@
 0.1 - First test
 0.2 - Added E
 0.3 - Added Simple Combo
-0.5 - Added Items + Dragon Lvl1 Spot]]
+0.5 - Added Items + Dragon Lvl1 Spot
+0.6 - Autoignite]]
 
 if myHero.charName ~= "Heimerdinger" then return end
 
@@ -22,20 +23,27 @@ local ProdictW, ProdictWCol, ProdictE
 
 local WAble, EAble, RAble
 
+local IgniteSlot = nil
+
 local ts = {}
 local HeimerConfig = {}
 
 local items =
-		{
-				BRK = {id=3153, range = 500, reqTarget = true, slot = nil },
-                BWC = {id=3144, range = 400, reqTarget = true, slot = nil },
-				DFG = {id=3128, range = 750, reqTarget = true, slot = nil },
-                HGB = {id=3146, range = 400, reqTarget = true, slot = nil },
-                RSH = {id=3074, range = 350, reqTarget = false, slot = nil},
-                STD = {id=3131, range = 350, reqTarget = false, slot = nil},
-                TMT = {id=3077, range = 350, reqTarget = false, slot = nil},
-                YGB = {id=3142, range = 350, reqTarget = false, slot = nil}
-		}
+	{
+		BRK = {id=3153, range = 500, reqTarget = true, slot = nil },
+		BWC = {id=3144, range = 400, reqTarget = true, slot = nil },
+		DFG = {id=3128, range = 750, reqTarget = true, slot = nil },
+		HGB = {id=3146, range = 400, reqTarget = true, slot = nil },
+		RSH = {id=3074, range = 350, reqTarget = false, slot = nil},
+		STD = {id=3131, range = 350, reqTarget = false, slot = nil},
+		TMT = {id=3077, range = 350, reqTarget = false, slot = nil},
+        YGB = {id=3142, range = 350, reqTarget = false, slot = nil}
+	}
+
+function CheckIgnite()
+	if myHero:GetSpellData(SUMMONER_1).name:find("Ignite") then IgniteSlot = SUMMONER_1
+		elseif myHero:GetSpellData(SUMMONER_2).name:find("Smite") then IgniteSlot = SUMMONER_2 end
+end
 
 function getHitBoxRadius(target)
 	return GetDistance(target, target.minBBox)
@@ -99,12 +107,15 @@ function OnLoad()
 	HeimerConfig:addParam("Combo", "Cast Combo", SCRIPT_PARAM_ONKEYDOWN, false, HKCombo)
 	HeimerConfig:addParam("UseR", "Use R at Combo", SCRIPT_PARAM_ONOFF, true)
 	HeimerConfig:addParam("Dragon", "Draw Turrets Placement to Dragon", SCRIPT_PARAM_ONOFF, true)
+	HeimerConfig:addParam("Ignite", "Auto Ignite when killable", SCRIPT_PARAM_ONOFF, true)
 	HeimerConfig:permaShow("W")
 	HeimerConfig:permaShow("E")
 	HeimerConfig:permaShow("Combo")
 	HeimerConfig:addTS(ts)
 	
 	ts.name = "Heimerdinger"
+	
+	CheckIgnite()
 	
 	ProdictW = Prodict:AddProdictionObject(_W, RangeW, 1200, 0.2, 70, myHero, CastW)
 	ProdictWCol = Collision(RangeW, 1200, 0.2, 70)
@@ -118,12 +129,13 @@ function OnLoad()
 		end
 	end
 	
-	PrintChat(">> Heimer Prodiction 0.5 loaded")
+	PrintChat(">> Heimer Prodiction 0.6 loaded")
 end
 
 function OnTick()
 	Checks()
 	ts:update()
+	AutoIgnite()
 	if ts.target ~= nil and HeimerConfig.W then
 		ProdictW:EnableTarget(ts.target, true)
 	end
@@ -166,6 +178,7 @@ function Checks()
 	WAble = (myHero:CanUseSpell(_W) == READY)
 	EAble = (myHero:CanUseSpell(_E) == READY)
 	RAble = (myHero:CanUseSpell(_E) == READY)
+	if IgniteSlot ~= nil then IgniteAble = (myHero:CanUseSpell(IgniteSlot) == READY) end
 end
 
 function UseItems(target)
@@ -182,4 +195,20 @@ function UseItems(target)
             end
         end
     end
+end
+
+
+function AutoIgnite()
+	if HeimerConfig.Ignite and IgniteREADY then
+        local IgniteDMG = 0            
+        for j = 1, heroManager.iCount, 1 do
+            local EnemyHero = heroManager:getHero(j)
+			if ValidTarget(EnemyHero) then
+				IgniteDMG = 50 + 20 * myHero.level
+				if EnemyHero ~= nil and EnemyHero.team ~= myHero.team and not EnemyHero.dead and EnemyHero.visible and GetDistance(EnemyHero) <= 600 and EnemyHero.health <= ignitedmg then
+					CastSpell(IgniteSlot, EnemyHero)
+				end
+			end
+		end
+	end
 end
