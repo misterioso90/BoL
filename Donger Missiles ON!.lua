@@ -2,7 +2,8 @@
 
 0.1 - First test
 0.2 - Added E
-0.3 - Added Simple Combo]]
+0.3 - Added Simple Combo
+0.5 - Added Items + Dragon Lvl1 Spot]]
 
 if myHero.charName ~= "Heimerdinger" then return end
 
@@ -24,6 +25,18 @@ local WAble, EAble, RAble
 local ts = {}
 local HeimerConfig = {}
 
+local items =
+		{
+				BRK = {id=3153, range = 500, reqTarget = true, slot = nil },
+                BWC = {id=3144, range = 400, reqTarget = true, slot = nil },
+				DFG = {id=3128, range = 750, reqTarget = true, slot = nil },
+                HGB = {id=3146, range = 400, reqTarget = true, slot = nil },
+                RSH = {id=3074, range = 350, reqTarget = false, slot = nil},
+                STD = {id=3131, range = 350, reqTarget = false, slot = nil},
+                TMT = {id=3077, range = 350, reqTarget = false, slot = nil},
+                YGB = {id=3142, range = 350, reqTarget = false, slot = nil}
+		}
+
 function getHitBoxRadius(target)
 	return GetDistance(target, target.minBBox)
 end
@@ -41,30 +54,33 @@ function CastE(unit, pos, spell)
 	end
 end
 
-function CastCombo()
+function CastCombo(Target)
 	if WAble and EAble and RAble and HeimerConfig.UseR then
-		if GetDistance(ts.target) - getHitBoxRadius(ts.target)/2 < RangeE then
-			local willCollide = ProdictWCol:GetMinionCollision(ts.target, myHero)
+		if GetDistance(Target) - getHitBoxRadius(Target)/2 < RangeE then
+			local willCollide = ProdictWCol:GetMinionCollision(Target, myHero)
 			if not willCollide then
-				ProdictE:EnableTarget(ts.target, true)
+				UseItems(Target)
+				ProdictE:EnableTarget(Target, true)
 				CastSpell(_R)
-				ProdictW:EnableTarget(ts.target, true)
+				ProdictW:EnableTarget(Target, true)
 			end
 		end
 	elseif WAble and RAble and HeimerConfig.UseR then
-		if GetDistance(ts.target) - getHitBoxRadius(ts.target)/2 < RangeW then
-			local willCollide = ProdictWCol:GetMinionCollision(ts.target, myHero)
+		if GetDistance(Target) - getHitBoxRadius(Target)/2 < RangeW then
+			local willCollide = ProdictWCol:GetMinionCollision(Target, myHero)
 			if not willCollide then
+				UseItems(Target)
 				CastSpell(_R)
-				ProdictW:EnableTarget(ts.target, true)
+				ProdictW:EnableTarget(Target, true)
 			end
 		end
 	elseif WAble and EAble then
-		if GetDistance(ts.target) - getHitBoxRadius(ts.target)/2 < RangeE then
-			local willCollide = ProdictWCol:GetMinionCollision(ts.target, myHero)
+		if GetDistance(Target) - getHitBoxRadius(Target)/2 < RangeE then
+			local willCollide = ProdictWCol:GetMinionCollision(Target, myHero)
 			if not willCollide then
-				ProdictE:EnableTarget(ts.target, true)
-				ProdictW:EnableTarget(ts.target, true)
+				UseItems(Target)
+				ProdictE:EnableTarget(Target, true)
+				ProdictW:EnableTarget(Target, true)
 			end
 		end
 	end
@@ -82,6 +98,7 @@ function OnLoad()
 	HeimerConfig:addParam("E", "Cast E", SCRIPT_PARAM_ONKEYDOWN, false, HKE)
 	HeimerConfig:addParam("Combo", "Cast Combo", SCRIPT_PARAM_ONKEYDOWN, false, HKCombo)
 	HeimerConfig:addParam("UseR", "Use R at Combo", SCRIPT_PARAM_ONOFF, true)
+	HeimerConfig:addParam("Dragon", "Draw Turrets Placement to Dragon", SCRIPT_PARAM_ONOFF, true)
 	HeimerConfig:permaShow("W")
 	HeimerConfig:permaShow("E")
 	HeimerConfig:permaShow("Combo")
@@ -101,7 +118,7 @@ function OnLoad()
 		end
 	end
 	
-	PrintChat(">> Heimer Prodiction 0.3 loaded")
+	PrintChat(">> Heimer Prodiction 0.5 loaded")
 end
 
 function OnTick()
@@ -114,7 +131,7 @@ function OnTick()
 		ProdictE:EnableTarget(ts.target, true)
 	end
 	if ts.target ~= nil and HeimerConfig.Combo then
-		CastCombo()
+		CastCombo(ts.target)
 	end
 end
 
@@ -136,10 +153,33 @@ function OnDraw()
 	if EAble then
 		DrawCircle(myHero.x, myHero.y, myHero.z, RangeE, 0x5F9F9F)
 	end
-end
+	
+	if HeimerConfig.Dragon then
+		DrawCircle(10117.653320 , -61.549327, 4804.696289, 40, 0xFFFFFF) --Top One
+		DrawCircle(10330.710937 , -62.091323, 4567.517089, 40, 0xFFFFFF) --Mid One
+		DrawCircle(10295 , -61.179419, 4330.397460, 40, 0xFFFFFF) --Bottom One??
+		--DrawCircle(10254.695312, -60.704513, 4303.810546, 40, 0xFFFFFF) --Could World Bottom One
+	end
+end 
 
 function Checks()
 	WAble = (myHero:CanUseSpell(_W) == READY)
 	EAble = (myHero:CanUseSpell(_E) == READY)
 	RAble = (myHero:CanUseSpell(_E) == READY)
+end
+
+function UseItems(target)
+    if target == nil then return end
+    for _,item in pairs(items) do
+        item.slot = GetInventorySlotItem(item.id)
+        if item.slot ~= nil then
+            if item.reqTarget and GetDistance(target) < item.range then
+                CastSpell(item.slot, target)
+                elseif not item.reqTarget then
+                if (GetDistance(target) - getHitBoxRadius(myHero) - getHitBoxRadius(target)) < 50 then
+                    CastSpell(item.slot)
+                end
+            end
+        end
+    end
 end
