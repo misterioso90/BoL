@@ -4,7 +4,7 @@
 0.2 - Added E
 0.3 - Added Simple Combo
 0.5 - Added Items + Dragon Lvl1 Spot
-0.6 - Autoignite]]
+0.6 - Autoignite + Fixes]]
 
 if myHero.charName ~= "Heimerdinger" then return end
 
@@ -14,6 +14,8 @@ end
 
 require "Collision"
 require "Prodiction"
+
+gameState = GetGame()
 
 local RangeW = 1350
 local RangeE = 925
@@ -41,8 +43,9 @@ local items =
 	}
 
 function CheckIgnite()
-	if myHero:GetSpellData(SUMMONER_1).name:find("Ignite") then IgniteSlot = SUMMONER_1
-		elseif myHero:GetSpellData(SUMMONER_2).name:find("Smite") then IgniteSlot = SUMMONER_2 end
+	if myHero:GetSpellData(SUMMONER_1).name:find("SummonerDot") then IgniteSlot = SUMMONER_1
+        elseif myHero:GetSpellData(SUMMONER_2).name:find("SummonerDot") then IgniteSlot = SUMMONER_2
+    end
 end
 
 function getHitBoxRadius(target)
@@ -96,6 +99,8 @@ end
 
 function OnLoad()
 
+	CheckIgnite()
+
 	ts = TargetSelector(TARGET_LESS_CAST, 1550, DAMAGE_MAGIC)
 	HeimerConfig = scriptConfig("Heimer Options", "HeimerCONF")
 	local HKW = string.byte("X")
@@ -107,15 +112,13 @@ function OnLoad()
 	HeimerConfig:addParam("Combo", "Cast Combo", SCRIPT_PARAM_ONKEYDOWN, false, HKCombo)
 	HeimerConfig:addParam("UseR", "Use R at Combo", SCRIPT_PARAM_ONOFF, true)
 	HeimerConfig:addParam("Dragon", "Draw Turrets Placement to Dragon", SCRIPT_PARAM_ONOFF, true)
-	HeimerConfig:addParam("Ignite", "Auto Ignite when killable", SCRIPT_PARAM_ONOFF, true)
+	HeimerConfig:addParam("Ignite", "Auto Ignite KS", SCRIPT_PARAM_ONOFF, true)
 	HeimerConfig:permaShow("W")
 	HeimerConfig:permaShow("E")
 	HeimerConfig:permaShow("Combo")
 	HeimerConfig:addTS(ts)
 	
 	ts.name = "Heimerdinger"
-	
-	CheckIgnite()
 	
 	ProdictW = Prodict:AddProdictionObject(_W, RangeW, 1200, 0.2, 70, myHero, CastW)
 	ProdictWCol = Collision(RangeW, 1200, 0.2, 70)
@@ -135,7 +138,7 @@ end
 function OnTick()
 	Checks()
 	ts:update()
-	AutoIgnite()
+	AutoIgniteKS()
 	if ts.target ~= nil and HeimerConfig.W then
 		ProdictW:EnableTarget(ts.target, true)
 	end
@@ -165,19 +168,18 @@ function OnDraw()
 	if EAble then
 		DrawCircle(myHero.x, myHero.y, myHero.z, RangeE, 0x5F9F9F)
 	end
-	
-	if HeimerConfig.Dragon then
+	if HeimerConfig.Dragon and gameState.map.shortName == "summonerRift" then
 		DrawCircle(10117.653320 , -61.549327, 4804.696289, 40, 0xFFFFFF) --Top One
 		DrawCircle(10330.710937 , -62.091323, 4567.517089, 40, 0xFFFFFF) --Mid One
 		DrawCircle(10295 , -61.179419, 4330.397460, 40, 0xFFFFFF) --Bottom One??
-		--DrawCircle(10254.695312, -60.704513, 4303.810546, 40, 0xFFFFFF) --Could World Bottom One
+		--DrawCircle(10254.695312, -60.704513, 4303.810546, 40, 0xFFFFFF) --Could work as bottom one
 	end
 end 
 
 function Checks()
 	WAble = (myHero:CanUseSpell(_W) == READY)
 	EAble = (myHero:CanUseSpell(_E) == READY)
-	RAble = (myHero:CanUseSpell(_E) == READY)
+	RAble = (myHero:CanUseSpell(_R) == READY)
 	if IgniteSlot ~= nil then IgniteAble = (myHero:CanUseSpell(IgniteSlot) == READY) end
 end
 
@@ -197,17 +199,12 @@ function UseItems(target)
     end
 end
 
-
-function AutoIgnite()
-	if HeimerConfig.Ignite and IgniteREADY then
-        local IgniteDMG = 0            
-        for j = 1, heroManager.iCount, 1 do
-            local EnemyHero = heroManager:getHero(j)
-			if ValidTarget(EnemyHero) then
-				IgniteDMG = 50 + 20 * myHero.level
-				if EnemyHero ~= nil and EnemyHero.team ~= myHero.team and not EnemyHero.dead and EnemyHero.visible and GetDistance(EnemyHero) <= 600 and EnemyHero.health <= ignitedmg then
-					CastSpell(IgniteSlot, EnemyHero)
-				end
+function AutoIgniteKS()
+	if HeimerConfig.Ignite and IgniteAble then
+		IgniteDMG = 50 + (20 * myHero.level)
+		for _, enemy in pairs(GetEnemyHeroes()) do
+			if ValidTarget(enemy, 600) and enemy.health <= IgniteDMG then
+				CastSpell(IgniteSlot, enemy)
 			end
 		end
 	end
