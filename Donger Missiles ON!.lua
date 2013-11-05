@@ -4,7 +4,10 @@
 0.2 - Added E
 0.3 - Added Simple Combo
 0.5 - Added Items + Dragon Lvl1 Spot
-0.6 - Autoignite + Fixes]]
+0.6 - Autoignite + Fixes
+
+http://pastebin.com/SJ2zXeNk
+Revisar para ideas de combos del chaval este]]
 
 if myHero.charName ~= "Heimerdinger" then return end
 
@@ -76,8 +79,8 @@ function CastCombo(Target)
 				ProdictW:EnableTarget(Target, true)
 			end
 		end
-	elseif WAble and RAble and HeimerConfig.UseR then
-		if GetDistance(Target) - getHitBoxRadius(Target)/2 < RangeW then
+	elseif (WAble and not EAble and RAble and HeimerConfig.UseR) or (WAble and RAble and HeimerConfig.UseR) then
+		if GetDistance(Target) - getHitBoxRadius(Target)/2 < RangeW and GetDistance(Target) - getHitBoxRadius(Target)/2 > RangeE then
 			local willCollide = ProdictWCol:GetMinionCollision(Target, myHero)
 			if not willCollide then
 				UseItems(Target)
@@ -85,7 +88,7 @@ function CastCombo(Target)
 				ProdictW:EnableTarget(Target, true)
 			end
 		end
-	elseif WAble and EAble then
+	elseif not RAble and WAble and EAble then
 		if GetDistance(Target) - getHitBoxRadius(Target)/2 < RangeE then
 			local willCollide = ProdictWCol:GetMinionCollision(Target, myHero)
 			if not willCollide then
@@ -95,6 +98,8 @@ function CastCombo(Target)
 			end
 		end
 	end
+	--Turret Combo E + R+Q
+	--Stun Combo -> W + R+E
 end
 
 function OnLoad()
