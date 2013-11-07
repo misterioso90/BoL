@@ -8,6 +8,7 @@
 0.7 - More Combos, improvement and added Blackfire Torch
 0.8 - Management of Combos + Mana
 0.9 - Added Move while comboing + Rewritten combos (More reliable now)
+0.9a - Distance Combo fixed + Improved FPS
 
 TODO
 * Finish Combo Calculation + test WIP
@@ -32,9 +33,9 @@ local RangeRE = 1800
 local WidthE = 70
 
 local Prodict = ProdictManager.GetInstance()
-local ProdictW, ProdictWCol, ProdictE, ProdictRE
+local ProdictW, ProdictWCol, ProdictE
 
-local QAble, WAble, EAble, RAble, RActive = false, false, false, false, false
+local QAble, WAble, EAble, RAble = false, false, false, false
 
 local QMana = myHero:GetSpellData(_Q).mana
 local WMana = myHero:GetSpellData(_W).mana
@@ -94,13 +95,13 @@ function CastDistanceCombo(Target)
 		if EAble and DistanceToHit(Target) > RangeW and DistanceToHit(Target) <RangeRE and myHero.mana >= RMana then
 			CastSpell(_R)
 			ProdictE:EnableTarget(Target, true)
-		end
-		if EAble and WAble and DistanceToHit(Target) < RangeW then
-			CastSpell(_R)
-			ProdictE:EnableTarget(Target, true)
-			ProdictW:EnableTarget(Target, true)
+			ERCastTime = GetTickCount() + 150
 		end
 	end
+	if WAble and (not Target.canMove or UnitSlowed) and GetTickCount() > ERCastTime and myHero.mana >= WMana and DistanceToHit(Target) < RangeW then
+		ProdictW:EnableTarget(Target, true)
+	end
+	
 end
 
 function IntelligentCombo(Target)
@@ -112,13 +113,13 @@ function IntelligentCombo(Target)
 		ECastTime = GetTickCount() + 150
 	end
 	
-	if QAble and (not Target.canMove or UnitSlowed) and RAble and HeimerConfig.UseR and GetTickCount() > ECastTime and myHero.mana >= RMana and DistanceToHit(Target) < RangeQ then
+	if QAble and HeimerConfig.UseQ and (not Target.canMove or UnitSlowed) and RAble and HeimerConfig.UseR and GetTickCount() > ECastTime and myHero.mana >= RMana and DistanceToHit(Target) < RangeQ then
 		CastSpell(_R)
 		CastSpell(_Q, Target.x, Target.z)
 		myHero:Attack(Target)
 	end
 	
-	if WAble and (not Target.canMove or UnitSlowed) and RAble and HeimerConfig.UseR and GetTickCount() > ECastTime and myHero.mana >= RMana and DistanceToHit(Target) < RangeW and (QAble and DistanceToHit(Target) > RangeQ) then
+	if WAble and (not Target.canMove or UnitSlowed) and RAble and HeimerConfig.UseR and GetTickCount() > ECastTime and myHero.mana >= RMana and DistanceToHit(Target) < RangeW and ((QAble and DistanceToHit(Target) > RangeQ) or not HeimerConfig.UseQ) then
 		CastSpell(_R)
 		ProdictW:EnableTarget(Target, true)
 	end
@@ -131,7 +132,7 @@ function IntelligentCombo(Target)
 		CastSpell(_Q, Target.x, Target.z)
 	end
 	
-	if QAble and WAble and not EAble and Target.canMove and myHero.mana >= QMana + WMana and DistanceToHit(Target) <RangeQ then
+	if QAble and HeimerConfig.UseQ and WAble and not EAble and Target.canMove and myHero.mana >= QMana + WMana and DistanceToHit(Target) <RangeQ then
 		CastSpell(_Q, Target.x, Target.z)
 		ProdictW:EnableTarget(Target, true)
 	end
@@ -167,6 +168,7 @@ function OnLoad()
 	
 	ProdictW = Prodict:AddProdictionObject(_W, RangeW, 1200, 0.2, 70, myHero, CastW)
 	ProdictWCol = Collision(RangeW, 1200, 0.2, 70)
+	ProdictE = Prodict:AddProdictionObject(_E, RangeE, 1000, 0.1, WidthE, myHero, CastE)
 	
 	-- for I = 1, heroManager.iCount do
 		-- local hero = heroManager:GetHero(I)
@@ -176,11 +178,10 @@ function OnLoad()
 		-- end
 	-- end
 	
-	PrintChat(">> Heimer Prodiction 0.9 loaded")
+	PrintChat(">> Heimer Prodiction 0.9a loaded")
 end
 
 function OnTick()
-	ProdictE = Prodict:AddProdictionObject(_E, RangeE, 1000, 0.1, WidthE, myHero, CastE)
 	Checks()
 	ts:update()
 	AutoIgniteKS()
@@ -262,13 +263,6 @@ function Checks()
 	EAble = (myHero:CanUseSpell(_E) == READY)
 	RAble = (myHero:CanUseSpell(_R) == READY)
 	if IgniteSlot ~= nil then IgniteAble = (myHero:CanUseSpell(IgniteSlot) == READY) end
-	if RActive then
-		RangeE = RangeRE
-		WidthE = 140
-	else
-		RangeE = 925
-		WidthE = 70
-	end
 end
 
 function UseItems(target)
@@ -300,7 +294,9 @@ end
 
 function OnGainBuff(unit, buff)
 	if unit == myHero and buff.name == "HeimerdingerR" then
-		RActive = true
+		RangeE = RangeRE
+		WidthE = 140
+		ProdictE = Prodict:AddProdictionObject(_E, RangeE, 1000, 0.1, WidthE, myHero, CastE)
 	end
 	if buff.name == "heimerdingerespell" then
 		UnitSlowed = true
@@ -309,7 +305,9 @@ end
 
 function OnLoseBuff(unit, buff)
 	if unit == myHero and buff.name == "HeimerdingerR" then
-		RActive = false
+		RangeE = 925
+		WidthE = 70
+		ProdictE = Prodict:AddProdictionObject(_E, RangeE, 1000, 0.1, WidthE, myHero, CastE)
 	end
 	if buff.name == "heimerdingerespell" then
 		UnitSlowed = false
