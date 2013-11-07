@@ -1,6 +1,6 @@
---[[ Olaf Prodiction by BotHappy
-http://pastebin.com/yZAHuKWr
-http://pastebin.com/8Z5f2N5i
+--[[ Bot-Laf the Viking by BotHappy
+Some ideas: http://pastebin.com/yZAHuKWr
+
 v0.1 - Initial release (WIP)
 v0.2 - Added items + Combo
 v0.5 - Tons of Fixes, Combo, KS with E, AutoIgnite, Farm with E + AA
