@@ -9,11 +9,11 @@
 0.8 - Management of Combos + Mana
 0.9 - Added Move while comboing + Rewritten combos (More reliable now)
 0.9a - Distance Combo fixed + Improved FPS
+0.9b - New Dragon spots at top + Magnet spot
 
 TODO
 * Finish Combo Calculation + test WIP
-* Draw Killable with Combo Calculation
-* Magnet Q Cast at Dragon]]
+* Draw Killable with Combo Calculation]]
 
 if myHero.charName ~= "Heimerdinger" then return end
 
@@ -60,6 +60,19 @@ local items =
 		STD = {id=3131, range = 350, reqTarget = false, slot = nil},
 		TMT = {id=3077, range = 350, reqTarget = false, slot = nil},
         YGB = {id=3142, range = 350, reqTarget = false, slot = nil}
+	}
+	
+local TurretSpots =
+	{
+		--Bottom towers
+		{x= 10117.65 ,	y= -61.54,	z=4804.69}, --Top One
+		{x= 10330.71 ,	y= -62.09,	z=4567.51}, --Mid One
+		{x= 10295 ,		y=-61.17, 	z=4330.39}, --Bottom One
+		
+		--Top Towers
+		{x= 9595, 		y=-59.20, 	z=5102.39},
+		{x= 9532, 		y=-58.07, 	z=5125.13},
+		{x= 9272, 		y=-58.45, 	z=5011.17},
 	}
 
 function CheckIgnite()
@@ -158,6 +171,7 @@ function OnLoad()
 	HeimerConfig:addParam("UseQ", "Use Q at Combo", SCRIPT_PARAM_ONOFF, false)
 	HeimerConfig:addParam("Dragon", "Draw Turrets Placement to Dragon", SCRIPT_PARAM_ONOFF, true)
 	HeimerConfig:addParam("Ignite", "Auto Ignite KS", SCRIPT_PARAM_ONOFF, true)
+	HeimerConfig:addParam("magnet", "Magnet Turret Spot (Press Z)", SCRIPT_PARAM_ONOFF, true)
 	HeimerConfig:permaShow("W")
 	HeimerConfig:permaShow("E")
 	HeimerConfig:permaShow("IntCombo")
@@ -178,13 +192,16 @@ function OnLoad()
 		-- end
 	-- end
 	
-	PrintChat(">> Heimer Prodiction 0.9a loaded")
+	PrintChat(">> Heimer Prodiction 0.9b loaded")
 end
 
 function OnTick()
 	Checks()
 	ts:update()
 	AutoIgniteKS()
+	if HeimerConfig.magnet and IsKeyDown(GetKey("Z")) then
+		MagneticQSpot()
+	end
 	--CheckDamages(ts.target)
 	if IsKeyDown(GetKey("C")) or IsKeyDown(GetKey("X")) or IsKeyDown(GetKey("T")) or IsKeyDown(32) then
 		myHero:MoveTo(mousePos.x, mousePos.z)
@@ -200,6 +217,15 @@ function OnTick()
 	end
 	if ts.target ~= nil and HeimerConfig.IntCombo then
 		IntelligentCombo(ts.target)
+	end
+end
+
+function MagneticQSpot()
+	for i, turretspot in pairs(TurretSpots) do
+		if GetDistance(mousePos, turretspot) <= 40 and QAble then
+			CastSpell(_Q, turretspot.x, turretspot.z)
+			return
+		end
 	end
 end
 
@@ -225,10 +251,14 @@ function OnDraw()
 		DrawCircle(myHero.x, myHero.y, myHero.z, RangeQ, 0xFFFFFF)
 	end
 	if HeimerConfig.Dragon and gameState.map.shortName == "summonerRift" then
-		DrawCircle(10117.653320 , -61.549327, 4804.696289, 40, 0xFFFFFF) --Top One
-		DrawCircle(10330.710937 , -62.091323, 4567.517089, 40, 0xFFFFFF) --Mid One
-		DrawCircle(10295 , -61.179419, 4330.397460, 40, 0xFFFFFF) --Bottom One??
+		DrawCircle(10117.65 , -61.54, 4804.69, 40, 0xFFFFFF) --Top One
+		DrawCircle(10330.71 , -62.09, 4567.51, 40, 0xFFFFFF) --Mid One
+		DrawCircle(10295 , -61.17, 4330.39, 40, 0xFFFFFF) --Bottom One??
 		--DrawCircle(10254.695312, -60.704513, 4303.810546, 40, 0xFFFFFF) --Could work as bottom one
+
+		DrawCircle(9595, -59.20, 5102.39, 40, 0x32cd32)
+		DrawCircle(9532, -58.07, 5125.13, 40, 0x32cd32)
+		DrawCircle(9272, -58.45, 5011.17, 40, 0x32cd32)
 	end
 	-- for i=1, heroManager.iCount do
         -- local enemydraw = heroManager:GetHero(i)
