@@ -49,7 +49,7 @@ function OnDraw()
 				DrawText3D(tostring(timetokill), Enemy.x, Enemy.y, Enemy.z, 20, RGB(255, 255, 255), true)
 			end
 			if AAtoKill.autos then
-				autostokill = "AAs to kill:" .. string.format("%4.0f", 1+(Enemy.health/(myHero:CalcDamage(Enemy, myHero.damage) + (Lethality*iebought*myHero:CalcDamage(Enemy, myHero.damage)*myHero.critChance))))
+				autostokill = "AAs to kill:" .. string.format("%4.0f", 1+(Enemy.health/(myHero:CalcDamage(Enemy, myHero.totalDamage) + (Lethality*iebought*myHero:CalcDamage(Enemy, myHero.totalDamage)*myHero.critChance))))
 				DrawText3D(tostring(autostokill), Enemy.x+10, Enemy.y, Enemy.z+65, 20, RGB(255, 255, 255), true)
 			end
         end
@@ -57,7 +57,7 @@ function OnDraw()
 end
 
 function DPS(Enemy)
-	return Enemy.health/ (myHero:CalcDamage(Enemy, myHero.damage) * myHero.attackSpeed)
+	return Enemy.health/ (myHero:CalcDamage(Enemy, myHero.totalDamage) * myHero.attackSpeed)
 end
 
 function CRIT(Enemy)
@@ -67,5 +67,5 @@ function CRIT(Enemy)
 		iebought = 1
 	end
 	
-	return Enemy.health/ ((myHero:CalcDamage(Enemy, myHero.damage) + (Lethality*iebought*myHero:CalcDamage(Enemy, myHero.damage)*myHero.critChance)) * myHero.attackSpeed)
+	return Enemy.health/ ((myHero:CalcDamage(Enemy, myHero.totalDamage) + (Lethality*iebought*myHero:CalcDamage(Enemy, myHero.totalDamage)*myHero.critChance)) * myHero.attackSpeed)
 end
