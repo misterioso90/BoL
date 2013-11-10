@@ -4,13 +4,13 @@ Some ideas: http://pastebin.com/yZAHuKWr
 v0.1 - Initial release (WIP)
 v0.2 - Added items + Combo
 v0.5 - Tons of Fixes, Combo, KS with E, AutoIgnite, Farm with E + AA
-v0.6 - Added Q Farming, Q and Q+E KS, improved Combo]]
+v0.6 - Added Q Farming, Q and Q+E KS, improved Combo
+v0.7 - Autotake Axe]]
 
 --[[TODO
- * Autotake Q
  * Improve Combo
  * Better Draws
- * Fix UseR at Dominion
+ * Fix UseR at Dominion (Packets)
 ]]
 
 require "Prodiction"
@@ -27,6 +27,8 @@ local AlreadyAttacked = false
 
 local NextTick = 0
 local IgniteSlot = nil
+
+local Axe = nil
 
 local units = {}
 
@@ -71,7 +73,7 @@ function OnLoad()
 	ts = TargetSelector(TARGET_LESS_CAST, 1200, DAMAGE_PHYSICAL)
 	OlafConfig = scriptConfig("Olaf Options", "OLAF CONFIG")
 	local HKQ = string.byte("X")
-	local HKCombo = string.byte("T")
+	local HKCombo = string.byte(32)
 	local HKFarm = string.byte("C")
 	
 	OlafConfig:addParam("Q", "Cast Q", SCRIPT_PARAM_ONKEYDOWN, false, HKQ)
@@ -80,6 +82,8 @@ function OnLoad()
 	OlafConfig:addParam("NoE", "No E at Combo", SCRIPT_PARAM_ONOFF, false)
 	OlafConfig:addParam("KSq", "KS with Q", SCRIPT_PARAM_ONOFF, true)
 	OlafConfig:addParam("KSe", "KS with E", SCRIPT_PARAM_ONOFF, true)
+	OlafConfig:addParam("AxeCombo", "AutoCatch Axe at combo", SCRIPT_PARAM_ONOFF, true)
+	OlafConfig:addParam("AutoAxe", "AutoCatch Axe", SCRIPT_PARAM_ONOFF, false)
 	OlafConfig:addParam("UseR", "Auto use R when CC'd", SCRIPT_PARAM_ONOFF, true) --fix dominion.
 	OlafConfig:addParam("Ignite", "Auto Ignite KS", SCRIPT_PARAM_ONOFF, true)
 	OlafConfig:addParam("Farm", "AutoFarm with E + AA", SCRIPT_PARAM_ONKEYDOWN, false, HKFarm)
@@ -137,6 +141,7 @@ function OnTick()
 	Checks()
 	ts:update()
 	AutoIgniteKS()
+	UseR()	
 	if IsKeyDown(GetKey("X")) then
 		myHero:MoveTo(mousePos.x, mousePos.z)
 	end
@@ -155,7 +160,9 @@ function OnTick()
 	if ts.target ~= nil and OlafConfig.Combo then
 		ComboCast(ts.target)
 	end
-	UseR()	
+	if Axe ~= nil and OlafConfig.AutoAxe and not QAble and GetDistance(myHero, Axe) <= 500 then
+		myHero:MoveTo(Axe.x, Axe.z)
+	end
 	if OlafConfig.Farm then
 		if IsKeyDown(GetKey("C")) and GetTickCount() > NextTick then
 			myHero:MoveTo(mousePos.x, mousePos.z)
@@ -204,6 +211,9 @@ function ComboCast(Target)
 		if GetDistance(Target) <= eRange then
 			CastSpell(_E, Target)
 		end
+	end
+	if Axe ~= nil and not QAble and OlafConfig.AutoAxe and GetDistance(myHero, Axe) <= 400 then
+		myHero:MoveTo(Axe.x, Axe.z)
 	end
 end
 
@@ -270,5 +280,21 @@ function AutoFarm()
 			CastSpell(_Q,unit.obj.x,unit.obj.z)
 			return
 		end
+	end
+end
+
+function OnCreateObj(obj) 
+	if obj and GetDistance(obj) < 1500 and not obj.name:find("Odin") then
+		if obj.name:find("olaf_axe_totem") then
+			Axe = obj
+		end
+	end
+end 
+
+function OnDeleteObj(obj) 
+	if obj and GetDistance(obj) < 1500 and not obj.name:find("Odin") then
+		 if obj.name:find("olaf_axe_totem") then 
+		 	Axe = nil
+		 end
 	end
 end
