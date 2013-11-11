@@ -1,4 +1,4 @@
---[[Bot-Galio the Gatekeeper by BotHappy
+--[[Galibot the Gatekeeper by BotHappy
 
 
 v1.0 First Release
@@ -93,7 +93,7 @@ function OnLoad()
 	ProdictQ = Prodict:AddProdictionObject(_Q, RangeQ, 1000, 0.1, WidthQ, myHero, CastQ)
 	ProdictE = Prodict:AddProdictionObject(_E, RangeE, 1000, 0.1, WidthE, myHero, CastE)
 	
-	PrintChat(">> Bot-Galio the Gatekeeper 1.0 loaded")
+	PrintChat(">> Galibot the Gatekeeper 1.0 loaded")
 end
 
 function OnTick()
