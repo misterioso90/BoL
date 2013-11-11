@@ -5,7 +5,8 @@ v0.1 - Initial release (WIP)
 v0.2 - Added items + Combo
 v0.5 - Tons of Fixes, Combo, KS with E, AutoIgnite, Farm with E + AA
 v0.6 - Added Q Farming, Q and Q+E KS, improved Combo
-v0.7 - Autotake Axe]]
+v0.7 - Autotake Axe
+v0.7a - Improved KS]]
 
 --[[TODO
  * Improve Combo
@@ -105,36 +106,25 @@ function OnLoad()
 		end
 	end
 	
-	PrintChat(">> Olaf Prodiction WIP loaded")
+	PrintChat(">> Bot-Laf the Viking 0.7a loaded")
 end
 
-function KSwithE(Target)
-	if myHero:GetDistance(Target) <= eRange then
-		local eDmg = getDmg("E",Target,myHero)
-		if Target.health <= eDmg and EAble then
-			CastSpell(_E, Target)      
+function KSwithE()
+    for i = 1, heroManager.iCount do
+		local Enemy = heroManager:getHero(i)
+		if EAble and ValidTarget(Enemy, 400, true) and Enemy.health < getDmg("E",Enemy,myHero) then
+			CastSpell(_E, Enemy)
 		end
-	end    
+    end
 end
 
-function KSwithQ(Target)
-	if myHero:GetDistance(Target) <= qRange then
-		local qDmg = getDmg("Q",Target,myHero)
-		if Target.health < qDmg and QAble then
-			ProdictQ:EnableTarget(Target, true)     
-		end
-	end    
-end
-
-function KSwithQE(Target)
-	if myHero:GetDistance(Target) <= eRange then
-		local qDmg = getDmg("Q",Target,myHero)
-		local eDmg = getDmg("E",Target,myHero)
-		if Target.health < qDmg + eDmg and QAble and Eable then
+function KSwithQ()
+    for i = 1, heroManager.iCount do
+		local Enemy = heroManager:getHero(i)
+		if QAble and ValidTarget(Enemy, 1100, true) and Enemy.health < getDmg("Q",Enemy,myHero) - 40 then
 			ProdictQ:EnableTarget(Target, true)
-			CastSpell(_E, Target)
 		end
-	end
+    end
 end
 
 function OnTick()
@@ -145,15 +135,13 @@ function OnTick()
 	if IsKeyDown(GetKey("X")) then
 		myHero:MoveTo(mousePos.x, mousePos.z)
 	end
-	if ts.target ~= nil and OlafConfig.KSe then
-		KSwithE(ts.target)
+	if OlafConfig.KSe then
+		KSwithE()
 	end
-	if ts.target ~= nil and OlafConfig.KSq then
-		KSwithQ(ts.target)
+	if OlafConfig.KSq then
+		KSwithQ()
 	end
-	if ts.target ~= nil and OlafConfig.KSq and OlafConfig.KSe then
-		KSwithQE(ts.target)
-	end
+	
 	if ts.target ~= nil and OlafConfig.Q then
 		ProdictQ:EnableTarget(ts.target, true)
 	end
@@ -191,7 +179,6 @@ function OnDraw()
 	end
 end
 
-
 function AAttack(Target)
 	myHero:Attack(Target)
 end
@@ -216,7 +203,6 @@ function ComboCast(Target)
 		myHero:MoveTo(Axe.x, Axe.z)
 	end
 end
-
 
 function Checks()
 	QAble = (myHero:CanUseSpell(_Q) == READY)
