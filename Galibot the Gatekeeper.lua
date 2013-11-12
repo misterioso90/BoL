@@ -82,6 +82,7 @@ function OnLoad()
 	GalioConfig:addParam("KSq", "AutoKS with Q", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:addParam("KSe", "AutoKS with E", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:addParam("Ignite", "AutoIgnite KS", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("draws", "Draw Circles", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:permaShow("Q")
 	GalioConfig:permaShow("E")
 	GalioConfig:permaShow("Combo")
@@ -124,40 +125,62 @@ function OnTick()
 end
 
 function OnDraw()
-	if ts.target ~= nil then
-		local dist = getHitBoxRadius(ts.target)/2
-		
-		if GetDistance(ts.target) - dist < RangeQ then
-			DrawCircle(ts.target.x, ts.target.y, ts.target.z, dist, 0x7F006E)
+	if GalioConfig.draws then
+		if ts.target ~= nil then
+			local dist = getHitBoxRadius(ts.target)/2
+			
+			if GetDistance(ts.target) - dist < RangeQ then
+				DrawCircle(ts.target.x, ts.target.y, ts.target.z, dist, 0x7F006E)
+			end
+			if GetDistance(ts.target) - dist < RangeE then
+				DrawCircle(ts.target.x, ts.target.y, ts.target.z, dist, 0x5F9F9F)
+			end
 		end
-		if GetDistance(ts.target) - dist < RangeE then
-			DrawCircle(ts.target.x, ts.target.y, ts.target.z, dist, 0x5F9F9F)
+		if QAble then
+			DrawCircle(myHero.x, myHero.y, myHero.z, RangeQ, 0xFFFFFF)
 		end
-	end
-	if QAble then
-		DrawCircle(myHero.x, myHero.y, myHero.z, RangeQ, 0xFFFFFF)
-	end
-	if WAble then
-		DrawCircle(myHero.x, myHero.y, myHero.z, RangeW, 0x7F006E)
-	end
-	if EAble then
-		DrawCircle(myHero.x, myHero.y, myHero.z, RangeE, 0x99FF00)
-	end
-	if RAble then
-		DrawCircle(myHero.x, myHero.y, myHero.z, RangeR, 0xCCFF00)
-		for i = 1, heroManager.iCount do
-			local Enemy = heroManager:getHero(i)
-			if Enemy.team ~= myHero.team and DistanceToHit(Enemy) < RangeR then
-				PrintFloatText(Enemy, 0, "ULT")
-				DrawCircle(Enemy.x, Enemy.y, Enemy.z, 120, 0x00FF00)
-				DrawCircle(Enemy.x, Enemy.y, Enemy.z, 130, 0x00FF00)
-				DrawCircle(Enemy.x, Enemy.y, Enemy.z, 140, 0x00FF00)
+		if WAble then
+			DrawCircle(myHero.x, myHero.y, myHero.z, RangeW, 0x7F006E)
+		end
+		if EAble then
+			DrawCircle(myHero.x, myHero.y, myHero.z, RangeE, 0x99FF00)
+		end
+		if RAble then
+			DrawCircle(myHero.x, myHero.y, myHero.z, RangeR, 0xCCFF00)
+			for i = 1, heroManager.iCount do
+				local Enemy = heroManager:getHero(i)
+				if Enemy.team ~= myHero.team and DistanceToHit(Enemy) < RangeR then
+					PrintFloatText(Enemy, 0, "ULT")
+					DrawCircle(Enemy.x, Enemy.y, Enemy.z, 120, 0x00FF00)
+					DrawCircle(Enemy.x, Enemy.y, Enemy.z, 130, 0x00FF00)
+					DrawCircle(Enemy.x, Enemy.y, Enemy.z, 140, 0x00FF00)
+				end
 			end
 		end
 	end
 end
 
 --Added functions, code...
+
+-- function GetAllies()
+	-- local NumAllies = 0
+	-- for i = 1, heroManager.iCount do
+		-- local Enemy = heroManager:getHero(i)
+		-- if Enemy.team ~= myHero.team and DistanceToHit(Enemy) < RangeR then
+			-- --Get number. GetAllyHeroes() could help here.
+		-- end
+	-- end
+-- end
+
+-- function GetEnemies()
+	-- local NumEnemies = 0
+	-- for i = 1, heroManager.iCount do
+		-- local Ally = heroManager:getHero(i)
+		-- if Ally.team == myHero.team and DistanceToHit(Ally) < RangeR+300 then
+			-- --Get number. GetEnemyHeroes() could help here.
+		-- end
+	-- end
+-- end
 
 function ComboCast(Target)
 	UseItems(Target)
