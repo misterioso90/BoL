@@ -7,7 +7,8 @@ v0.5 - Tons of Fixes, Combo, KS with E, AutoIgnite, Farm with E + AA
 v0.6 - Added Q Farming, Q and Q+E KS, improved Combo
 v0.7 - Autotake Axe
 v0.7a - Improved KS
-v0.8 - Added Orbwalking at combo]]
+v0.8 - Added Orbwalking at combo
+v0.8a - Move to Mouse option added]]
 
 --[[TODO
  * Better Draws
@@ -101,10 +102,13 @@ function OnLoad()
 	OlafConfig:addParam("FarmQ", "Add Q to AutoFarm", SCRIPT_PARAM_ONOFF, false)
 	OlafConfig:addParam("draws", "Draw Circles", SCRIPT_PARAM_ONOFF, true)
 	OlafConfig:addParam("UseOrbwalk", "Use Orbwalk", SCRIPT_PARAM_ONOFF, true)
+	OlafConfig:addParam("ActMovMouse", "Activate Move to Mouse", SCRIPT_PARAM_ONOFF, false)
+	OlafConfig:addParam("MoveToMouse", "Move to Mouse", SCRIPT_PARAM_ONKEYDOWN, false, 32)
 	OlafConfig:permaShow("Q")
 	OlafConfig:permaShow("Combo")
 	OlafConfig:permaShow("UseR")
 	OlafConfig:permaShow("Farm")
+	OlafConfig:permaShow("MoveToMouse")
 	OlafConfig:addTS(ts)
 	
 	ts.name = "Olaf"
@@ -118,7 +122,7 @@ function OnLoad()
 		end
 	end
 	
-	PrintChat(">> Bot-Laf the Viking 0.8 loaded")
+	PrintChat(">> Bot-Laf the Viking 0.8a loaded")
 end
 
 function KSwithE()
@@ -145,6 +149,9 @@ function OnTick()
 	AutoIgniteKS()
 	UseR()	
 	if IsKeyDown(GetKey("X")) then
+		moveToCursor()
+	end
+	if OlafConfig.MoveToMouse and OlafConfig.ActMovMouse then
 		moveToCursor()
 	end
 	if OlafConfig.KSe then
