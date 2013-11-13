@@ -6,10 +6,10 @@ v0.2 - Added items + Combo
 v0.5 - Tons of Fixes, Combo, KS with E, AutoIgnite, Farm with E + AA
 v0.6 - Added Q Farming, Q and Q+E KS, improved Combo
 v0.7 - Autotake Axe
-v0.7a - Improved KS]]
+v0.7a - Improved KS
+v0.8 - Added Orbwalking at combo]]
 
 --[[TODO
- * Improve Combo
  * Better Draws
  * Fix UseR at Dominion (Packets)
 ]]
@@ -28,6 +28,11 @@ local AlreadyAttacked = false
 
 local NextTick = 0
 local IgniteSlot = nil
+
+local lastAnimation = nil
+local lastAttack = 0
+local lastAttackCD = 0
+local lastWindUpTime = 0
 
 local Axe = nil
 
@@ -74,11 +79,12 @@ function OnLoad()
 	ts = TargetSelector(TARGET_LESS_CAST, 1200, DAMAGE_PHYSICAL)
 	OlafConfig = scriptConfig("Olaf Options", "OLAF CONFIG")
 	local HKQ = string.byte("X")
-	local HKCombo = string.byte(32)
+	local HKCombo = string.byte("T")
 	local HKFarm = string.byte("C")
 	
 	OlafConfig:addParam("Q", "Cast Q", SCRIPT_PARAM_ONKEYDOWN, false, HKQ)
 	OlafConfig:addParam("Combo", "Cast Combo", SCRIPT_PARAM_ONKEYDOWN, false, HKCombo)
+	OlafConfig:addParam("NoQ", "No Q at Combo", SCRIPT_PARAM_ONOFF, false)
 	OlafConfig:addParam("NoW", "No W at Combo", SCRIPT_PARAM_ONOFF, false)
 	OlafConfig:addParam("NoE", "No E at Combo", SCRIPT_PARAM_ONOFF, false)
 	OlafConfig:addParam("KSq", "KS with Q", SCRIPT_PARAM_ONOFF, true)
@@ -89,6 +95,8 @@ function OnLoad()
 	OlafConfig:addParam("Ignite", "Auto Ignite KS", SCRIPT_PARAM_ONOFF, true)
 	OlafConfig:addParam("Farm", "AutoFarm with E + AA", SCRIPT_PARAM_ONKEYDOWN, false, HKFarm)
 	OlafConfig:addParam("FarmQ", "Add Q to AutoFarm", SCRIPT_PARAM_ONOFF, false)
+	OlafConfig:addParam("draws", "Draw Circles", SCRIPT_PARAM_ONOFF, true)
+	OlafConfig:addParam("UseOrbwalk", "Use Orbwalk", SCRIPT_PARAM_ONOFF, true)
 	OlafConfig:permaShow("Q")
 	OlafConfig:permaShow("Combo")
 	OlafConfig:permaShow("UseR")
@@ -106,7 +114,7 @@ function OnLoad()
 		end
 	end
 	
-	PrintChat(">> Bot-Laf the Viking 0.7a loaded")
+	PrintChat(">> Bot-Laf the Viking 0.8 loaded")
 end
 
 function KSwithE()
@@ -133,7 +141,7 @@ function OnTick()
 	AutoIgniteKS()
 	UseR()	
 	if IsKeyDown(GetKey("X")) then
-		myHero:MoveTo(mousePos.x, mousePos.z)
+		moveToCursor()
 	end
 	if OlafConfig.KSe then
 		KSwithE()
@@ -148,45 +156,49 @@ function OnTick()
 	if ts.target ~= nil and OlafConfig.Combo then
 		ComboCast(ts.target)
 	end
+	if OlafConfig.UseOrbwalk and IsKeyDown(GetKey("T")) then
+		if ts.target ~= nil then
+			OrbWalking(ts.target)
+		else
+			moveToCursor()
+		end
+	end
 	if Axe ~= nil and OlafConfig.AutoAxe and not QAble and GetDistance(myHero, Axe) <= 500 then
 		myHero:MoveTo(Axe.x, Axe.z)
 	end
 	if OlafConfig.Farm then
 		if IsKeyDown(GetKey("C")) and GetTickCount() > NextTick then
-			myHero:MoveTo(mousePos.x, mousePos.z)
+			moveToCursor()
 		end
 	AutoFarm()
 	end
 end
 
 function OnDraw()
-	if ts.target ~= nil then
-		local dist = getHitBoxRadius(ts.target)/2
+	if OlafConfig.draws then
+		if ts.target ~= nil then
+			local dist = getHitBoxRadius(ts.target)/2
 		
-		if GetDistance(ts.target) - dist < qRange then
-			DrawCircle(ts.target.x, ts.target.y, ts.target.z, dist, 0x7F006E)
+			if GetDistance(ts.target) - dist < qRange then
+				DrawCircle(ts.target.x, ts.target.y, ts.target.z, dist, 0x7F006E)
+			end
+			if GetDistance(ts.target) - dist < eRange then
+				DrawCircle(ts.target.x, ts.target.y, ts.target.z, dist, 0x5F9F9F)
+			end
 		end
-		if GetDistance(ts.target) - dist < eRange then
-			DrawCircle(ts.target.x, ts.target.y, ts.target.z, dist, 0x5F9F9F)
-		end
-	end
 	
-	if QAble then
-		DrawCircle(myHero.x, myHero.y, myHero.z, qRange, 0x7F006E)
+		if QAble then
+			DrawCircle(myHero.x, myHero.y, myHero.z, qRange, 0x7F006E)
+		end
+		if EAble then
+			DrawCircle(myHero.x, myHero.y, myHero.z, eRange, 0x5F9F9F)
+		end
 	end
-	if EAble then
-		DrawCircle(myHero.x, myHero.y, myHero.z, eRange, 0x5F9F9F)
-	end
-end
-
-function AAttack(Target)
-	myHero:Attack(Target)
 end
 
 function ComboCast(Target) 
 	UseItems(Target)
-	AAttack(Target)
-	if QAble then
+	if QAble and not OlafConfig.NoQ then
 		ProdictQ:EnableTarget(Target, true)
 	end
 	if WAble and not OlafConfig.NoW then
@@ -267,6 +279,48 @@ function AutoFarm()
 			return
 		end
 	end
+end
+
+--Based on Manciuzz Orbwalker http://pastebin.com/jufCeE0e
+
+function OrbWalking(Target)
+	--if GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
+		if TimeToAttack() and GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
+			myHero:Attack(Target)
+		elseif heroCanMove() then
+			moveToCursor()
+		end
+--	elseif GetDistance(Target) >= myHero.range + GetDistance(myHero.minBBox) or Target == nil then moveToCursor()
+	--end
+end
+
+function TimeToAttack()
+	return (GetTickCount() + GetLatency()/2 > lastAttack + lastAttackCD)
+end
+
+function heroCanMove()
+	return (GetTickCount() + GetLatency()/2 > lastAttack + lastWindUpTime + 20)
+end
+
+function moveToCursor()
+	if GetDistance(mousePos) then
+		local moveToPos = myHero + (Vector(mousePos) - myHero):normalized()*300
+		myHero:MoveTo(moveToPos.x, moveToPos.z)
+	end	
+end
+
+function OnProcessSpell(object,spell)
+	if object == myHero then
+		if spell.name:lower():find("attack") then
+			lastAttack = GetTickCount() - GetLatency()/2
+			lastWindUpTime = spell.windUpTime*1000
+			lastAttackCD = spell.animationTime*1000
+		end
+	end
+end
+
+function OnAnimation(unit,animationName)
+        if unit.isMe and lastAnimation ~= animationName then lastAnimation = animationName end
 end
 
 function OnCreateObj(obj) 
