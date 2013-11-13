@@ -2,6 +2,7 @@
 
 
 v1.0 First Release
+v1.1 Orbwalking added
 
 TODO
 
@@ -34,11 +35,12 @@ local Prodict = ProdictManager.GetInstance()
 local ProdictQ, ProdictE
 
 local QAble, WAble, EAble, RAble = false, false, false, false
+local QMana, WMana, EMana, RMana = 0,0,0,0
 
-local QMana = myHero:GetSpellData(_Q).mana
-local WMana = myHero:GetSpellData(_W).mana
-local EMana = myHero:GetSpellData(_E).mana
-local RMana = myHero:GetSpellData(_R).mana
+local lastAnimation = nil
+local lastAttack = 0
+local lastAttackCD = 0
+local lastWindUpTime = 0
 
 local IgniteSlot = nil
 
@@ -64,11 +66,11 @@ function OnLoad()
 	CheckIgnite()
 	ts = TargetSelector(TARGET_LESS_CAST, RangeE+150, DAMAGE_MAGIC)
 	
-	GalioConfig = scriptConfig("Galio Options", "GalioCONFIG")
+	GalioConfig = scriptConfig("Galio Options", "GalioCONFIG1.1")
 	
 	local HKQ = string.byte("X")
 	local HKE = string.byte("C")
-	local HKCombo = 32
+	local HKCombo = string.byte("T")
 	
 	GalioConfig:addParam("Q", "Cast Q", SCRIPT_PARAM_ONKEYDOWN, false, HKQ)
 	GalioConfig:addParam("E", "Cast E", SCRIPT_PARAM_ONKEYDOWN, false, HKE)
@@ -83,6 +85,7 @@ function OnLoad()
 	GalioConfig:addParam("KSe", "AutoKS with E", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:addParam("Ignite", "AutoIgnite KS", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:addParam("draws", "Draw Circles", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("UseOrbwalk", "Use Orbwalk", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:permaShow("Q")
 	GalioConfig:permaShow("E")
 	GalioConfig:permaShow("Combo")
@@ -94,7 +97,7 @@ function OnLoad()
 	ProdictQ = Prodict:AddProdictionObject(_Q, RangeQ, 1000, 0.1, WidthQ, myHero, CastQ)
 	ProdictE = Prodict:AddProdictionObject(_E, RangeE, 1000, 0.1, WidthE, myHero, CastE)
 	
-	PrintChat(">> Galibot the Gatekeeper 1.0 loaded")
+	PrintChat(">> Galibot the Gatekeeper 1.1 loaded")
 end
 
 function OnTick()
@@ -107,14 +110,21 @@ function OnTick()
 	if GalioConfig.KSq then
 		KSq()
 	end
-	if IsKeyDown(GetKey("C")) or IsKeyDown(GetKey("X")) or IsKeyDown(32) then
-		myHero:MoveTo(mousePos.x, mousePos.z)
+	if IsKeyDown(GetKey("C")) or IsKeyDown(GetKey("X")) then
+		moveToCursor()
 	end
 	if ts.target ~= nil and GalioConfig.Q then
 		ProdictQ:EnableTarget(ts.target, true)
 	end
 	if ts.target ~= nil and GalioConfig.E then
 		ProdictE:EnableTarget(ts.target, true)
+	end
+	if GalioConfig.UseOrbwalk and IsKeyDown(GetKey("T")) then
+		if ts.target ~= nil then
+			OrbWalking(ts.target)
+		else
+			moveToCursor()
+		end
 	end
 	if ts.target ~= nil and GalioConfig.Combo then
 		ComboCast(ts.target)
@@ -248,6 +258,11 @@ function Checks()
 	EAble = (myHero:CanUseSpell(_E) == READY)
 	RAble = (myHero:CanUseSpell(_R) == READY)
 	if IgniteSlot ~= nil then IgniteAble = (myHero:CanUseSpell(IgniteSlot) == READY) end
+	
+	QMana = myHero:GetSpellData(_Q).mana
+	WMana = myHero:GetSpellData(_W).mana
+	EMana = myHero:GetSpellData(_E).mana
+	RMana = myHero:GetSpellData(_R).mana
 end
 
 function UseItems(target)
@@ -275,4 +290,46 @@ function AutoIgniteKS()
 			end
 		end
 	end
+end
+
+--Based on Manciuzz Orbwalker http://pastebin.com/jufCeE0e
+
+function OrbWalking(Target)
+	--if GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
+		if TimeToAttack() and GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
+			myHero:Attack(Target)
+		elseif heroCanMove() then
+			moveToCursor()
+		end
+--	elseif GetDistance(Target) >= myHero.range + GetDistance(myHero.minBBox) or Target == nil then moveToCursor()
+	--end
+end
+
+function TimeToAttack()
+	return (GetTickCount() + GetLatency()/2 > lastAttack + lastAttackCD)
+end
+
+function heroCanMove()
+	return (GetTickCount() + GetLatency()/2 > lastAttack + lastWindUpTime + 20)
+end
+
+function moveToCursor()
+	if GetDistance(mousePos) then
+		local moveToPos = myHero + (Vector(mousePos) - myHero):normalized()*300
+		myHero:MoveTo(moveToPos.x, moveToPos.z)
+	end	
+end
+
+function OnProcessSpell(object,spell)
+	if object == myHero then
+		if spell.name:lower():find("attack") then
+			lastAttack = GetTickCount() - GetLatency()/2
+			lastWindUpTime = spell.windUpTime*1000
+			lastAttackCD = spell.animationTime*1000
+		end
+	end
+end
+
+function OnAnimation(unit,animationName)
+        if unit.isMe and lastAnimation ~= animationName then lastAnimation = animationName end
 end

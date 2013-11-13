@@ -10,6 +10,7 @@
 0.9 - Added Move while comboing + Rewritten combos (More reliable now)
 0.9a - Distance Combo fixed + Improved FPS
 0.9b - New Dragon spots at top + Magnet spot
+0.9c - Orbwalking improvement
 
 TODO
 * Finish Combo Calculation + test WIP
@@ -36,11 +37,7 @@ local Prodict = ProdictManager.GetInstance()
 local ProdictW, ProdictWCol, ProdictE
 
 local QAble, WAble, EAble, RAble = false, false, false, false
-
-local QMana = myHero:GetSpellData(_Q).mana
-local WMana = myHero:GetSpellData(_W).mana
-local EMana = myHero:GetSpellData(_E).mana
-local RMana = myHero:GetSpellData(_R).mana
+local QMana, WMana, EMana, RMana = 0,0,0,0
 
 local UnitSlowed = false
 
@@ -157,7 +154,7 @@ function OnLoad()
 	CheckIgnite()
 
 	ts = TargetSelector(TARGET_LESS_CAST, RangeRE+150, DAMAGE_MAGIC)
-	HeimerConfig = scriptConfig("Heimer Options", "HeimerCONFIG")
+	HeimerConfig = scriptConfig("Heimer Options", "HeimerCONFIG0.9c")
 	local HKW = string.byte("X")
 	local HKE = string.byte("C")
 	local HKDCombo = string.byte("T")
@@ -172,6 +169,7 @@ function OnLoad()
 	HeimerConfig:addParam("Dragon", "Draw Turrets Placement to Dragon", SCRIPT_PARAM_ONOFF, true)
 	HeimerConfig:addParam("Ignite", "Auto Ignite KS", SCRIPT_PARAM_ONOFF, true)
 	HeimerConfig:addParam("magnet", "Magnet Turret Spot (Press Z)", SCRIPT_PARAM_ONOFF, true)
+	HeimerConfig:addParam("UseOrbwalk", "Orbwalking at combo", SCRIPT_PARAM_ONOFF, true)
 	HeimerConfig:permaShow("W")
 	HeimerConfig:permaShow("E")
 	HeimerConfig:permaShow("IntCombo")
@@ -192,7 +190,7 @@ function OnLoad()
 		-- end
 	-- end
 	
-	PrintChat(">> Heimer Prodiction 0.9b loaded")
+	PrintChat(">> Donger Missiles ON! 0.9c loaded")
 end
 
 function OnTick()
@@ -203,8 +201,15 @@ function OnTick()
 		MagneticQSpot()
 	end
 	--CheckDamages(ts.target)
-	if IsKeyDown(GetKey("C")) or IsKeyDown(GetKey("X")) or IsKeyDown(GetKey("T")) or IsKeyDown(32) then
-		myHero:MoveTo(mousePos.x, mousePos.z)
+	if IsKeyDown(GetKey("C")) or IsKeyDown(GetKey("X")) then
+		moveToCursor()
+	end
+	if HeimerConfig.UseOrbwalk and (IsKeyDown(GetKey("T")) or IsKeyDown(32)) then
+		if ts.target ~= nil then
+			OrbWalking(ts.target)
+		else
+			moveToCursor()
+		end
 	end
 	if ts.target ~= nil and HeimerConfig.W then
 		ProdictW:EnableTarget(ts.target, true)
@@ -293,7 +298,13 @@ function Checks()
 	EAble = (myHero:CanUseSpell(_E) == READY)
 	RAble = (myHero:CanUseSpell(_R) == READY)
 	if IgniteSlot ~= nil then IgniteAble = (myHero:CanUseSpell(IgniteSlot) == READY) end
+	
+	QMana = myHero:GetSpellData(_Q).mana
+	WMana = myHero:GetSpellData(_W).mana
+	EMana = myHero:GetSpellData(_E).mana
+	RMana = myHero:GetSpellData(_R).mana
 end
+
 
 function UseItems(target)
     if target == nil then return end
@@ -320,6 +331,48 @@ function AutoIgniteKS()
 			end
 		end
 	end
+end
+
+--Based on Manciuzz Orbwalker http://pastebin.com/jufCeE0e
+
+function OrbWalking(Target)
+	--if GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
+		if TimeToAttack() and GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
+			myHero:Attack(Target)
+		elseif heroCanMove() then
+			moveToCursor()
+		end
+--	elseif GetDistance(Target) >= myHero.range + GetDistance(myHero.minBBox) or Target == nil then moveToCursor()
+	--end
+end
+
+function TimeToAttack()
+	return (GetTickCount() + GetLatency()/2 > lastAttack + lastAttackCD)
+end
+
+function heroCanMove()
+	return (GetTickCount() + GetLatency()/2 > lastAttack + lastWindUpTime + 20)
+end
+
+function moveToCursor()
+	if GetDistance(mousePos) then
+		local moveToPos = myHero + (Vector(mousePos) - myHero):normalized()*300
+		myHero:MoveTo(moveToPos.x, moveToPos.z)
+	end	
+end
+
+function OnProcessSpell(object,spell)
+	if object == myHero then
+		if spell.name:lower():find("attack") then
+			lastAttack = GetTickCount() - GetLatency()/2
+			lastWindUpTime = spell.windUpTime*1000
+			lastAttackCD = spell.animationTime*1000
+		end
+	end
+end
+
+function OnAnimation(unit,animationName)
+        if unit.isMe and lastAnimation ~= animationName then lastAnimation = animationName end
 end
 
 function OnGainBuff(unit, buff)

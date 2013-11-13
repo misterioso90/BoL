@@ -18,6 +18,10 @@ require "Prodiction"
 
 if myHero.charName ~= "Olaf" then return end
 
+if not VIP_USER then
+	return
+end
+
 local qRange = 1000 -- Q range
 local eRange = 325 -- E range
 
@@ -77,7 +81,7 @@ function OnLoad()
 	CheckIgnite()
 
 	ts = TargetSelector(TARGET_LESS_CAST, 1200, DAMAGE_PHYSICAL)
-	OlafConfig = scriptConfig("Olaf Options", "OLAF CONFIG")
+	OlafConfig = scriptConfig("Olaf Options", "OLAF CONFIG0.8")
 	local HKQ = string.byte("X")
 	local HKCombo = string.byte("T")
 	local HKFarm = string.byte("C")
