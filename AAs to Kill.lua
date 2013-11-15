@@ -3,7 +3,8 @@ which is needed to kill someone with autoattacks.
 
 v1.0 Release
 v1.1 Added Menu + IE support
-v1.2 Added Lethality mastery
+v1.2 Added Lethality masteryv
+v1.3 Added Vayne (Estimation) + BOTkR
 
 Author: BotHappy
 
@@ -12,8 +13,17 @@ TODO
 
 ]]
 
+local Vayne = false
+
+if myHero.charName == "Vayne" then
+	Vayne=true
+end
+
 local IEid = 3031
+local BOTkRid = 3153
 local iebought = 1
+local BOTkRdmg = 0
+local Vaynedmg = 0
 local Lethality = 1
 
 function OnLoad()
@@ -49,7 +59,7 @@ function OnDraw()
 				DrawText3D(tostring(timetokill), Enemy.x, Enemy.y, Enemy.z, 20, RGB(255, 255, 255), true)
 			end
 			if AAtoKill.autos then
-				autostokill = "AAs to kill:" .. string.format("%4.0f", 1+(Enemy.health/(myHero:CalcDamage(Enemy, myHero.totalDamage) + (Lethality*iebought*myHero:CalcDamage(Enemy, myHero.totalDamage)*myHero.critChance))))
+				autostokill = "AAs to kill:" .. string.format("%4.0f", 1+(Enemy.health/(myHero:CalcDamage(Enemy, myHero.totalDamage) + Vaynedmg + BOTkRdmg + (Lethality*iebought*myHero:CalcDamage(Enemy, myHero.totalDamage)*myHero.critChance))))
 				DrawText3D(tostring(autostokill), Enemy.x+10, Enemy.y, Enemy.z+65, 20, RGB(255, 255, 255), true)
 			end
         end
@@ -67,5 +77,18 @@ function CRIT(Enemy)
 		iebought = 1
 	end
 	
-	return Enemy.health/ ((myHero:CalcDamage(Enemy, myHero.totalDamage) + (Lethality*iebought*myHero:CalcDamage(Enemy, myHero.totalDamage)*myHero.critChance)) * myHero.attackSpeed)
+	if GetInventorySlotItem(BOTkRid) ~=nil then
+		BOTkRdmg = myHero:CalcDamage(Enemy, (Enemy.health)*0.05)
+	else
+		BOTkRdmg = 0
+	end
+	
+	if Vayne then
+		WAble = (myHero:CanUseSpell(_W) == READY)
+		Vaynedmg = (((3+(myHero:GetSpellData(_W).level))*0.01)*Enemy.maxHealth)/3
+	else
+		Vaynedmg = 0
+	end
+	
+	return Enemy.health/ ((myHero:CalcDamage(Enemy, myHero.totalDamage) + (Lethality*iebought*myHero:CalcDamage(Enemy, myHero.totalDamage)*myHero.critChance) + BOTkRdmg + Vaynedmg) * myHero.attackSpeed)
 end
