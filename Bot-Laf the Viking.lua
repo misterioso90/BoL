@@ -8,7 +8,8 @@ v0.6 - Added Q Farming, Q and Q+E KS, improved Combo
 v0.7 - Autotake Axe
 v0.7a - Improved KS
 v0.8 - Added Orbwalking at combo
-v0.8a - Move to Mouse option added]]
+v0.8a - Move to Mouse option added
+v0.8b - Fixed KSq, AutoR]]
 
 --[[TODO
  * Better Draws
@@ -28,8 +29,6 @@ local eRange = 325 -- E range
 
 local Prodict = ProdictManager.GetInstance()
 local ProdictQ
-
-local AlreadyAttacked = false
 
 local NextTick = 0
 local IgniteSlot = nil
@@ -82,7 +81,7 @@ function OnLoad()
 	CheckIgnite()
 
 	ts = TargetSelector(TARGET_LESS_CAST, 1200, DAMAGE_PHYSICAL)
-	OlafConfig = scriptConfig("Olaf Options", "OLAF CONFIG0.8")
+	OlafConfig = scriptConfig("Olaf Options", "OLAF CONFIG0.8b")
 	local HKQ = string.byte("X")
 	local HKCombo = string.byte("T")
 	local HKFarm = string.byte("C")
@@ -102,13 +101,10 @@ function OnLoad()
 	OlafConfig:addParam("FarmQ", "Add Q to AutoFarm", SCRIPT_PARAM_ONOFF, false)
 	OlafConfig:addParam("draws", "Draw Circles", SCRIPT_PARAM_ONOFF, true)
 	OlafConfig:addParam("UseOrbwalk", "Use Orbwalk", SCRIPT_PARAM_ONOFF, true)
-	OlafConfig:addParam("ActMovMouse", "Activate Move to Mouse", SCRIPT_PARAM_ONOFF, false)
-	OlafConfig:addParam("MoveToMouse", "Move to Mouse", SCRIPT_PARAM_ONKEYDOWN, false, 32)
 	OlafConfig:permaShow("Q")
 	OlafConfig:permaShow("Combo")
 	OlafConfig:permaShow("UseR")
 	OlafConfig:permaShow("Farm")
-	OlafConfig:permaShow("MoveToMouse")
 	OlafConfig:addTS(ts)
 	
 	ts.name = "Olaf"
@@ -122,7 +118,7 @@ function OnLoad()
 		end
 	end
 	
-	PrintChat(">> Bot-Laf the Viking 0.8a loaded")
+	PrintChat(">> Bot-Laf the Viking 0.8b loaded")
 end
 
 function KSwithE()
@@ -137,8 +133,8 @@ end
 function KSwithQ()
     for i = 1, heroManager.iCount do
 		local Enemy = heroManager:getHero(i)
-		if QAble and ValidTarget(Enemy, 1100, true) and Enemy.health < getDmg("Q",Enemy,myHero) - 40 then
-			ProdictQ:EnableTarget(Target, true)
+		if QAble and ValidTarget(Enemy, 1100, true) and Enemy.health < (getDmg("Q",Enemy,myHero) - 35) then
+			ProdictQ:EnableTarget(Enemy, true)
 		end
     end
 end
@@ -147,11 +143,8 @@ function OnTick()
 	Checks()
 	ts:update()
 	AutoIgniteKS()
-	UseR()	
+	if OlafConfig.UseR then UseR() end
 	if IsKeyDown(GetKey("X")) then
-		moveToCursor()
-	end
-	if OlafConfig.MoveToMouse and OlafConfig.ActMovMouse then
 		moveToCursor()
 	end
 	if OlafConfig.KSe then
