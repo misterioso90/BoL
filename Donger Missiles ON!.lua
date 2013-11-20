@@ -210,6 +210,8 @@ function OnTick()
 		else
 			moveToCursor()
 		end
+	else
+		moveToCursor()
 	end
 	if ts.target ~= nil and HeimerConfig.W then
 		ProdictW:EnableTarget(ts.target, true)
