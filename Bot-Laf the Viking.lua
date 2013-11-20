@@ -9,11 +9,15 @@ v0.7 - Autotake Axe
 v0.7a - Improved KS
 v0.8 - Added Orbwalking at combo
 v0.8a - Move to Mouse option added
-v0.8b - Fixed KSq, AutoR]]
+v0.8b - Fixed KSq, AutoR
+v0.8c - Fixed UseR at Dominion (WIP)
+v1.0 - Added Kill draws + updated prediction + fixes]]
 
 --[[TODO
- * Better Draws
- * Fix UseR at Dominion (Packets)
+* Improve Combo draws
+* Add time to kill
+* Improve R logic
+* Add Entropy to Combo
 ]]
 
 require "Prodiction"
@@ -24,163 +28,60 @@ if not VIP_USER then
 	return
 end
 
-local qRange = 1000 -- Q range
-local eRange = 325 -- E range
-
-local Prodict = ProdictManager.GetInstance()
-local ProdictQ
-
-local NextTick = 0
-local IgniteSlot = nil
-
-local lastAnimation = nil
-local lastAttack = 0
-local lastAttackCD = 0
-local lastWindUpTime = 0
-
-local Axe = nil
-
-local units = {}
-
-local items =
-{
-	BRK = {id=3153, range = 500, reqTarget = true, slot = nil },
-	BWC = {id=3144, range = 400, reqTarget = true, slot = nil },
-	DFG = {id=3128, range = 750, reqTarget = true, slot = nil },
-	HGB = {id=3146, range = 400, reqTarget = true, slot = nil },
-	RSH = {id=3074, range = 350, reqTarget = false, slot = nil},
-	STD = {id=3131, range = 350, reqTarget = false, slot = nil},
-	TMT = {id=3077, range = 350, reqTarget = false, slot = nil},
-	YGB = {id=3142, range = 350, reqTarget = false, slot = nil}
-}
-
-function CheckIgnite()
-	if myHero:GetSpellData(SUMMONER_1).name:find("SummonerDot") then IgniteSlot = SUMMONER_1
-        elseif myHero:GetSpellData(SUMMONER_2).name:find("SummonerDot") then IgniteSlot = SUMMONER_2
-    end
-end
-
-function getHitBoxRadius(target)
-	return GetDistance(target, target.minBBox)
-end
-
-function CastQ(unit, pos, spell)
-	if GetDistance(pos) - getHitBoxRadius(unit)/2 < qRange then
-		CastSpell(_Q, pos.x, pos.z)
-	end
-end
-
-function UseR()
-	if not myHero.canMove or myHero.isTaunted or myHero.isCharmed or myHero.isFeared then
-		CastSpell(_R)
-	end
-end
+------------------------------------------------------
+--					Basic Functions					--
+------------------------------------------------------
 
 function OnLoad()
-
+	Variables()
 	CheckIgnite()
-
-	ts = TargetSelector(TARGET_LESS_CAST, 1200, DAMAGE_PHYSICAL)
-	OlafConfig = scriptConfig("Olaf Options", "OLAF CONFIG0.8b")
-	local HKQ = string.byte("X")
-	local HKCombo = string.byte("T")
-	local HKFarm = string.byte("C")
+	Menu()
 	
-	OlafConfig:addParam("Q", "Cast Q", SCRIPT_PARAM_ONKEYDOWN, false, HKQ)
-	OlafConfig:addParam("Combo", "Cast Combo", SCRIPT_PARAM_ONKEYDOWN, false, HKCombo)
-	OlafConfig:addParam("NoQ", "No Q at Combo", SCRIPT_PARAM_ONOFF, false)
-	OlafConfig:addParam("NoW", "No W at Combo", SCRIPT_PARAM_ONOFF, false)
-	OlafConfig:addParam("NoE", "No E at Combo", SCRIPT_PARAM_ONOFF, false)
-	OlafConfig:addParam("KSq", "KS with Q", SCRIPT_PARAM_ONOFF, true)
-	OlafConfig:addParam("KSe", "KS with E", SCRIPT_PARAM_ONOFF, true)
-	OlafConfig:addParam("AxeCombo", "AutoCatch Axe at combo", SCRIPT_PARAM_ONOFF, true)
-	OlafConfig:addParam("AutoAxe", "AutoCatch Axe", SCRIPT_PARAM_ONOFF, false)
-	OlafConfig:addParam("UseR", "Auto use R when CC'd", SCRIPT_PARAM_ONOFF, true) --fix dominion.
-	OlafConfig:addParam("Ignite", "Auto Ignite KS", SCRIPT_PARAM_ONOFF, true)
-	OlafConfig:addParam("Farm", "AutoFarm with E + AA", SCRIPT_PARAM_ONKEYDOWN, false, HKFarm)
-	OlafConfig:addParam("FarmQ", "Add Q to AutoFarm", SCRIPT_PARAM_ONOFF, false)
-	OlafConfig:addParam("draws", "Draw Circles", SCRIPT_PARAM_ONOFF, true)
-	OlafConfig:addParam("UseOrbwalk", "Use Orbwalk", SCRIPT_PARAM_ONOFF, true)
-	OlafConfig:permaShow("Q")
-	OlafConfig:permaShow("Combo")
-	OlafConfig:permaShow("UseR")
-	OlafConfig:permaShow("Farm")
-	OlafConfig:addTS(ts)
-	
-	ts.name = "Olaf"
-	
-	ProdictQ = Prodict:AddProdictionObject(_Q, qRange, 1600, 0.3, 75, myHero, CastQ)
-	
-	for I = 1, heroManager.iCount do
-		local hero = heroManager:GetHero(I)
-		if hero.team ~= myHero.team then
-			ProdictQ:CanNotMissMode(true, hero)
-		end
-	end
-	
-	PrintChat(">> Bot-Laf the Viking 0.8b loaded")
-end
-
-function KSwithE()
-    for i = 1, heroManager.iCount do
-		local Enemy = heroManager:getHero(i)
-		if EAble and ValidTarget(Enemy, 400, true) and Enemy.health < getDmg("E",Enemy,myHero) then
-			CastSpell(_E, Enemy)
-		end
-    end
-end
-
-function KSwithQ()
-    for i = 1, heroManager.iCount do
-		local Enemy = heroManager:getHero(i)
-		if QAble and ValidTarget(Enemy, 1100, true) and Enemy.health < (getDmg("Q",Enemy,myHero) - 35) then
-			ProdictQ:EnableTarget(Enemy, true)
-		end
-    end
+	PrintChat(">> Bot-Laf the Viking 1.0 loaded!")
 end
 
 function OnTick()
 	Checks()
 	ts:update()
 	AutoIgniteKS()
-	if OlafConfig.UseR then UseR() end
-	if IsKeyDown(GetKey("X")) then
-		moveToCursor()
-	end
-	if OlafConfig.KSe then
-		KSwithE()
-	end
-	if OlafConfig.KSq then
-		KSwithQ()
+	
+	if OlafConfig.UseR then UseSkillR() end
+	if IsKeyDown(HKQ) then	MoveToCursor() end
+	
+	if OlafConfig.KSe then	KSwithE()	end
+	if OlafConfig.KSq then	KSwithQ()	end
+	
+	if ValidTarget(ts.target) and OlafConfig.Q then
+		CastQ(ts.target)
 	end
 	
-	if ts.target ~= nil and OlafConfig.Q then
-		ProdictQ:EnableTarget(ts.target, true)
-	end
-	if ts.target ~= nil and OlafConfig.Combo then
+	if ValidTarget(ts.target) and OlafConfig.Combo then
 		ComboCast(ts.target)
 	end
-	if OlafConfig.UseOrbwalk and IsKeyDown(GetKey("T")) then
-		if ts.target ~= nil then
+	
+	if OlafConfig.UseOrbwalk and IsKeyDown(HKCombo) then
+		if ValidTarget(ts.target) then
 			OrbWalking(ts.target)
 		else
-			moveToCursor()
+			MoveToCursor()
 		end
 	end
+	
 	if Axe ~= nil and OlafConfig.AutoAxe and not QAble and GetDistance(myHero, Axe) <= 500 then
 		myHero:MoveTo(Axe.x, Axe.z)
 	end
+	
 	if OlafConfig.Farm then
-		if IsKeyDown(GetKey("C")) and GetTickCount() > NextTick then
-			moveToCursor()
+		if IsKeyDown(HKFarm) and GetTickCount() > NextTick then
+			MoveToCursor()
 		end
-	AutoFarm()
+		AutoFarm()
 	end
 end
 
 function OnDraw()
-	if OlafConfig.draws then
-		if ts.target ~= nil then
+	if OlafConfig.Draws then
+		if ValidTarget(ts.target) then
 			local dist = getHitBoxRadius(ts.target)/2
 		
 			if GetDistance(ts.target) - dist < qRange then
@@ -198,12 +99,237 @@ function OnDraw()
 			DrawCircle(myHero.x, myHero.y, myHero.z, eRange, 0x5F9F9F)
 		end
 	end
+	if OlafConfig.DrawKill then KillDraws() end
+end
+
+------------------------------------------------------
+--					Aux Functions					--
+------------------------------------------------------
+
+function CheckIgnite()
+	if myHero:GetSpellData(SUMMONER_1).name:find("SummonerDot") then IgniteSlot = SUMMONER_1
+        elseif myHero:GetSpellData(SUMMONER_2).name:find("SummonerDot") then IgniteSlot = SUMMONER_2
+    end
+end
+
+function getHitBoxRadius(target)
+	return GetDistance(target, target.minBBox)
+end
+
+function Variables()
+	if GetGame().map.index == 8 then
+		Dominion = true
+	else
+		Dominion = false
+	end
+	
+	qRange = 1000 -- Q range
+	eRange = 325 -- E range
+
+	Prodict = ProdictManager.GetInstance()
+
+	NextTick = 0
+	IgniteSlot = nil
+
+	lastAnimation = nil
+	lastAttack = 0
+	lastAttackCD = 0
+	lastWindUpTime = 0
+
+	Axe = nil
+
+	units = {}
+
+	items = -- With entropy
+	{
+		BRK = {id=3153, range = 500, reqTarget = true, slot = nil },
+		ETP = {id=3184, range = 350, reqTarget = true, slot = nil },
+		BWC = {id=3144, range = 400, reqTarget = true, slot = nil },
+		DFG = {id=3128, range = 750, reqTarget = true, slot = nil },
+		HGB = {id=3146, range = 400, reqTarget = true, slot = nil },
+		RSH = {id=3074, range = 350, reqTarget = false, slot = nil},
+		STD = {id=3131, range = 350, reqTarget = false, slot = nil},
+		TMT = {id=3077, range = 350, reqTarget = false, slot = nil},
+		YGB = {id=3142, range = 350, reqTarget = false, slot = nil}
+	}
+	
+	TrinitySlot, SheenSlot, BidgCutSlot, BotrkSlot, YoumuSlot, HydraSlot, EntropySlot = nil, nil, nil, nil, nil, nil, nil
+	qDmg, eDmg, AADmg, IgniteDmg = 0,0,0,0
+	Combo1, Combo2, Combo3, Combo4 = 0,0,0,0
+	
+	ts = TargetSelector(TARGET_LESS_CAST, 1200, DAMAGE_PHYSICAL)
+	ts.name = "Olaf"
+	
+	--old one: ProdictQ = Prodict:AddProdictionObject(_Q, qRange, 1600, 0.3, 75, myHero, CastQ)
+	ProdictQ = Prodict:AddProdictionObject(_Q, qRange, 1600, 0.250, 75)
+	
+	HKQ = string.byte("X")
+	HKCombo = string.byte("T")
+	HKFarm = string.byte("C")
+	
+	CapturingDom = false
+end
+
+function Menu()
+	OlafConfig = scriptConfig("Olaf Options", "OLAF CONFIG1.0")
+
+	OlafConfig:addParam("sep", "----- [ General Settings ] -----", SCRIPT_PARAM_INFO, "")
+	OlafConfig:addParam("Q", "Cast Q", SCRIPT_PARAM_ONKEYDOWN, false, HKQ)
+	OlafConfig:addParam("KSq", "KS with Q", SCRIPT_PARAM_ONOFF, true)
+	OlafConfig:addParam("KSe", "KS with E", SCRIPT_PARAM_ONOFF, true)
+	OlafConfig:addParam("AutoAxe", "AutoCatch Axe", SCRIPT_PARAM_ONOFF, false)
+	OlafConfig:addParam("UseR", "Auto use R when CC'd", SCRIPT_PARAM_ONOFF, false) 	
+	
+	OlafConfig:addParam("sep", "----- [ Combo Settings ] -----", SCRIPT_PARAM_INFO, "")	
+	
+	OlafConfig:addParam("Combo", "Cast Combo", SCRIPT_PARAM_ONKEYDOWN, false, HKCombo)
+	OlafConfig:addParam("NoQ", "No Q at Combo", SCRIPT_PARAM_ONOFF, false)
+	OlafConfig:addParam("NoW", "No W at Combo", SCRIPT_PARAM_ONOFF, false)
+	OlafConfig:addParam("NoE", "No E at Combo", SCRIPT_PARAM_ONOFF, false)
+	OlafConfig:addParam("UseOrbwalk", "Use Orbwalk", SCRIPT_PARAM_ONOFF, true)
+	OlafConfig:addParam("AxeCombo", "AutoCatch Axe at combo", SCRIPT_PARAM_ONOFF, true)
+
+	OlafConfig:addParam("sep", "----- [ Other Settings ] -----", SCRIPT_PARAM_INFO, "")
+	OlafConfig:addParam("Farm", "AutoFarm with E + AA", SCRIPT_PARAM_ONKEYDOWN, false, HKFarm)
+	OlafConfig:addParam("FarmQ", "Add Q to AutoFarm", SCRIPT_PARAM_ONOFF, false)	
+	OlafConfig:addParam("IgniteKS", "Auto Ignite KS", SCRIPT_PARAM_ONOFF, true)
+	OlafConfig:addParam("Draws", "Draw Circles", SCRIPT_PARAM_ONOFF, true)
+	OlafConfig:addParam("DrawKill", "Draw Kill Text", SCRIPT_PARAM_ONOFF, true)
+
+	OlafConfig:permaShow("Q")
+	OlafConfig:permaShow("Combo")
+	OlafConfig:permaShow("UseR")
+	OlafConfig:permaShow("Farm")
+	OlafConfig:addTS(ts)
+	
+end
+
+function Checks()
+	QAble = (myHero:CanUseSpell(_Q) == READY)
+	WAble = (myHero:CanUseSpell(_W) == READY)
+	EAble = (myHero:CanUseSpell(_E) == READY)
+	RAble = (myHero:CanUseSpell(_R) == READY)
+	
+	IgniteAble = (IgniteSlot ~= nil and myHero:CanUseSpell(IgniteSlot) == READY)
+	
+	TrinitySlot = GetInventorySlotItem(3078)
+	SheenSlot = GetInventorySlotItem(3057)
+	BidgCutSlot = GetInventorySlotItem(3144)
+	BotrkSlot = GetInventorySlotItem(3153)
+	YoumuSlot = GetInventorySlotItem(3142)
+	TiamatSlot = GetInventorySlotItem(3077)
+	HydraSlot = GetInventorySlotItem(3074)
+	EntropySlot = GetInventorySlotItem(3184)
+	
+	TrinityAble = (TrinitySlot ~= nil and myHero:CanUseSpell(TrinitySlot) == READY)
+	SheenAble = (SheenSlot ~= nil and myHero:CanUseSpell(SheenSlot) == READY)
+	BidgCutAble = (BidgCutSlot ~= nil and myHero:CanUseSpell(BidgCutSlot) == READY)
+	BotrkAble = (BotrkSlot ~= nil and myHero:CanUseSpell(BotrkSlot) == READY)
+	YoumuAble = (YoumuSlot ~= nil and myHero:CanUseSpell(YoumuSlot) == READY)
+	TiamatAble = (TiamatSlot ~= nil and myHero:CanUseSpell(TiamatSlot) == READY)
+	HydraAble = (HydraSlot ~= nil and myHero:CanUseSpell(HydraSlot) == READY)
+	EntropyAble = (EntropySlot ~= nil and myHero:CanUseSpell(EntropySlot) == READY)
+	GetDamages()
+end
+
+------------------------------------------------------
+--					Damages & Calcs					--
+------------------------------------------------------
+
+-- function TimeToKill()
+
+function GetDamages()
+	for i = 1, heroManager.iCount do
+		EnemyDraws = heroManager:getHero(i)
+		qDmg = getDmg("Q", EnemyDraws, myHero)
+		eDmg = getDmg("E", EnemyDraws, myHero)
+		AADmg = getDmg("AD", EnemyDraws, myHero)
+		IgniteDmg = getDmg("IGNITE", EnemyDraws, myHero)
+		SheenDmg = getDmg("SHEEN", EnemyDraws, myHero)
+		BidgCutDmg = getDmg("BWC", EnemyDraws, myHero)
+		TrinityDmg = getDmg("TRINITY", EnemyDraws, myHero)
+		BotrkDmg = getDmg("RUINEDKING", EnemyDraws, myHero)
+		HydraDmg = AADmg*0.6
+		TiamatDmg = AADmg*0.6
+		-- Entropy?
+	end
+	--Combos
+	
+	Combo1 = qDmg + eDmg + AADmg + IgniteDmg
+	Combo2 = qDmg*2 + eDmg + AADmg*2 + SheenDmg + TrinityDmg + BidgCutDmg + BotrkDmg + HydraDmg + TiamatDmg + IgniteDmg
+	Combo3 = qDmg*2 + eDmg*2 + AADmg*4 + IgniteDmg + 2*SheenDmg + 2*TrinityDmg + BidgCutDmg + BotrkDmg + HydraDmg + TiamatDmg + IgniteDmg
+	Combo4 = qDmg*3 + eDmg*3 + AADmg*6 + IgniteDmg + 3*SheenDmg + 3*TrinityDmg + BidgCutDmg + BotrkDmg + HydraDmg + TiamatDmg + IgniteDmg
+end
+
+function KillDraws()
+	for i = 1, heroManager.iCount do
+		local EnemyDraws = heroManager:getHero(i)
+		if ValidTarget(EnemyDraws) then
+			if EnemyDraws.health < (qDmg or eDmg) then
+				PrintFloatText(EnemyDraws, 0, "Almost dead!")
+			elseif EnemyDraws.health < IgniteDmg then
+				PrintFloatText(EnemyDraws, 0, "Ignite!")
+			elseif EnemyDraws.health < Combo1 then
+				PrintFloatText(EnemyDraws, 0, "Easy Kill!")
+			elseif EnemyDraws.health < Combo2 then
+				PrintFloatText(EnemyDraws, 0, "Medium Difficulty")
+			elseif EnemyDraws.health < Combo3 then
+				PrintFloatText(EnemyDraws, 0, "Decent Difficulty")
+			elseif EnemyDraws.health < Combo4 then
+				PrintFloatText(EnemyDraws, 0, "Hard to kill")
+			elseif EnemyDraws.health > Combo4 then
+				PrintFloatText(EnemyDraws, 0, "Almost Impossible")
+			end
+		end
+	end
+end
+
+------------------------------------------------------
+--					Combo Functions					--
+------------------------------------------------------
+
+function KSwithE()
+    for i = 1, heroManager.iCount do
+		local Enemy = heroManager:getHero(i)
+		if EAble and ValidTarget(Enemy, 400, true) and Enemy.health < getDmg("E",Enemy,myHero) then
+			CastSpell(_E, Enemy)
+		end
+    end
+end
+
+function KSwithQ()
+    for i = 1, heroManager.iCount do
+		local Enemy = heroManager:getHero(i)
+		if QAble and ValidTarget(Enemy, 1100, true) and Enemy.health < (getDmg("Q",Enemy,myHero) - 35) then
+			CastQ(Enemy)
+			--Old One: Prodict:EnableTarget(Enemy, true)
+		end
+    end
+end
+
+function CastQ(unit)
+	if GetDistance(unit) - getHitBoxRadius(unit)/2 < qRange and ValidTarget(unit) then
+		QPos = ProdictQ:GetPrediction(unit)
+		CastSpell(_Q, QPos.x, QPos.z)
+	end
+end
+
+function UseSkillR()
+	if not myHero.canMove or myHero.isTaunted or myHero.isCharmed or myHero.isFeared then
+		if not Dominion then
+			CastSpell(_R)
+		elseif Dominion and not CapturingDom then
+			if not GetTowerNear() then
+				CastSpell(_R)
+			end
+		end
+	end
 end
 
 function ComboCast(Target) 
 	UseItems(Target)
 	if QAble and not OlafConfig.NoQ then
-		ProdictQ:EnableTarget(Target, true)
+		CastQ(Target)
 	end
 	if WAble and not OlafConfig.NoW then
 		if GetDistance(Target) <= 250 then
@@ -215,17 +341,9 @@ function ComboCast(Target)
 			CastSpell(_E, Target)
 		end
 	end
-	if Axe ~= nil and not QAble and OlafConfig.AutoAxe and GetDistance(myHero, Axe) <= 400 then
+	if Axe ~= nil and not QAble and OlafConfig.AxeCombo and GetDistance(myHero, Axe) <= 400 then
 		myHero:MoveTo(Axe.x, Axe.z)
 	end
-end
-
-function Checks()
-	QAble = (myHero:CanUseSpell(_Q) == READY)
-	WAble = (myHero:CanUseSpell(_W) == READY)
-	EAble = (myHero:CanUseSpell(_E) == READY)
-	RAble = (myHero:CanUseSpell(_R) == READY)
-	if IgniteSlot ~= nil then IgniteAble = (myHero:CanUseSpell(IgniteSlot) == READY) end
 end
 
 function UseItems(target)
@@ -245,7 +363,7 @@ function UseItems(target)
 end
 
 function AutoIgniteKS()
-	if OlafConfig.Ignite and IgniteAble then
+	if OlafConfig.IgniteKS and IgniteAble then
 		IgniteDMG = 50 + (20 * myHero.level)
 		for _, enemy in pairs(GetEnemyHeroes()) do
 			if ValidTarget(enemy, 600) and enemy.health <= IgniteDMG then
@@ -254,6 +372,10 @@ function AutoIgniteKS()
 		end
 	end
 end
+
+------------------------------------------------------
+--					Other Functions					--
+------------------------------------------------------
 
 function AutoFarm()
 	for i = 1, objManager.maxObjects, 1 do
@@ -285,28 +407,37 @@ function AutoFarm()
 	end
 end
 
+function GetTowerNear()
+	for i = 0, objManager.maxObjects do
+		local obj = objManager:getObject(i)
+		if obj ~= nil and obj.name == "OdinNeutralGuardian" and obj.team ~= myHero.team and GetDistance(obj, myHero) <600 then
+			return true
+		end
+	end
+end
+
+------------------------------------------------------
+--					Orbwalk Functions				--
+------------------------------------------------------
 --Based on Manciuzz Orbwalker http://pastebin.com/jufCeE0e
 
 function OrbWalking(Target)
-	--if GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
-		if TimeToAttack() and GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
-			myHero:Attack(Target)
-		elseif heroCanMove() then
-			moveToCursor()
-		end
---	elseif GetDistance(Target) >= myHero.range + GetDistance(myHero.minBBox) or Target == nil then moveToCursor()
-	--end
+	if TimeToAttack() and GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
+		myHero:Attack(Target)
+	elseif HeroCanMove() then
+		MoveToCursor()
+	end
 end
 
 function TimeToAttack()
 	return (GetTickCount() + GetLatency()/2 > lastAttack + lastAttackCD)
 end
 
-function heroCanMove()
+function HeroCanMove()
 	return (GetTickCount() + GetLatency()/2 > lastAttack + lastWindUpTime + 20)
 end
 
-function moveToCursor()
+function MoveToCursor()
 	if GetDistance(mousePos) then
 		local moveToPos = myHero + (Vector(mousePos) - myHero):normalized()*300
 		myHero:MoveTo(moveToPos.x, moveToPos.z)
@@ -327,6 +458,10 @@ function OnAnimation(unit,animationName)
         if unit.isMe and lastAnimation ~= animationName then lastAnimation = animationName end
 end
 
+------------------------------------------------------
+--					Extra Callbacks					--
+------------------------------------------------------
+
 function OnCreateObj(obj) 
 	if obj and GetDistance(obj) < 1500 and not obj.name:find("Odin") then
 		if obj.name:find("olaf_axe_totem") then
@@ -340,5 +475,14 @@ function OnDeleteObj(obj)
 		 if obj.name:find("olaf_axe_totem") then 
 		 	Axe = nil
 		 end
+	end
+end
+
+function OnSendPacket(packet)
+	if tostring(packet.header) == "57" then 
+		CapturingDom = true
+		NextTick = GetTickCount() + 2000
+	elseif NextTick < GetTickCount() then
+		CapturingDom = false
 	end
 end
