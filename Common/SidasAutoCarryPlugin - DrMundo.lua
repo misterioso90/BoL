@@ -9,29 +9,20 @@ require "Prodiction"
 
 if myHero.charName ~= "DrMundo" or not VIP_USER then return end
 
-function Variables()
-	qRange = 1050
-	wRange = 325
-	eRange = 300
-	wUsed = false
+local qRange = 1050
+local wRange = 325
+local eRange = 300
+local wUsed = false
 	
-	QReady, WReady, EReady, RReady = false, false, false, false
+local QReady, WReady, EReady, RReady = false, false, false, false
 	
-	Prodict = ProdictManager.GetInstance()
-    ProdictQ = Prodict:AddProdictionObject(_Q, qRange, 1900, 0.250, 80)
-	ProdictQCollision = Collision(qRange, 1900, 0.250, 80)
-	
-	TrinitySlot, SheenSlot, BWCSlot, BotrkSlot, YoumuSlot, HydraSlot, EntropySlot = nil, nil, nil, nil, nil, nil, nil
-	qDmg, wDmg, AADmg, IgniteDmg = 0,0,0,0
-	SheenDmg, BWCDmg, TrinityDmg, BotrkDmg, HydraDmg, TiamatDmg, EntropyDmg = 0,0,0,0,0,0,0
-	
-	AutoCarry.SkillsCrosshair.range = 1400
-	
-	enemyMinions = minionManager(MINION_ENEMY, 600, player, MINION_SORT_HEALTH_DES)
-end
+local Prodict = ProdictManager.GetInstance()
+local ProdictQ = Prodict:AddProdictionObject(_Q, qRange, 1900, 0.250, 80)
+local ProdictQCollision = Collision(qRange, 1900, 0.250, 80)
 
 function PluginOnLoad()
-	Variables()
+	
+	AutoCarry.SkillsCrosshair.range = 1400
 	Menu()
 	PrintChat("<font color='#FF0000'> >> Time to Mundo! v1.0 Loaded<<</font>")
 end
@@ -57,7 +48,6 @@ function PluginOnDraw()
 			DrawCircle(myHero.x, myHero.y, myHero.z, wRange, 0x00FFFF)
 		end
 	end
-	if AutoCarry.PluginMenu.texts then KillDraws() end
 end
 
 function Menu()
@@ -75,7 +65,7 @@ function Menu()
 	AutoCarry.PluginMenu:permaShow("Harrass")
 	AutoCarry.PluginMenu:addParam("drawQ", "Draw Q Range", SCRIPT_PARAM_ONOFF, true)
 	AutoCarry.PluginMenu:addParam("drawW", "Draw W Range", SCRIPT_PARAM_ONOFF, true)
-	AutoCarry.PluginMenu:addParam("texts", "Draw Kill texts", SCRIPT_PARAM_ONOFF, true)
+	
 end
 
 function Checks()
@@ -84,70 +74,8 @@ function Checks()
 	EReady = (myHero:CanUseSpell(_E) == READY)
 	RReady = (myHero:CanUseSpell(_R) == READY)
 	Target = AutoCarry.GetAttackTarget()
-	
-	IgniteReady = (IgniteSlot ~= nil and myHero:CanUseSpell(IgniteSlot) == READY)
-    
-    TrinitySlot = GetInventorySlotItem(3078)
-    SheenSlot = GetInventorySlotItem(3057)
-    BCWSlot = GetInventorySlotItem(3144)
-    BotrkSlot = GetInventorySlotItem(3153)
-    YoumuSlot = GetInventorySlotItem(3142)
-    TiamatSlot = GetInventorySlotItem(3077)
-    HydraSlot = GetInventorySlotItem(3074)
-    EntropySlot = GetInventorySlotItem(3184)
-	
-	TrinityReady = (TrinitySlot ~= nil and myHero:CanUseSpell(TrinitySlot) == READY)
-    SheenReady = (SheenSlot ~= nil and myHero:CanUseSpell(SheenSlot) == READY)
-    BCW1Ready = (BCWSlot~= nil and myHero:CanUseSpell(BCWSlot) == READY)
-    BotrkReady = (BotrkSlot ~= nil and myHero:CanUseSpell(BotrkSlot) == READY)
-    YoumuReady = (YoumuSlot ~= nil and myHero:CanUseSpell(YoumuSlot) == READY)
-    TiamatReady = (TiamatSlot ~= nil and myHero:CanUseSpell(TiamatSlot) == READY)
-    HydraReady = (HydraSlot ~= nil and myHero:CanUseSpell(HydraSlot) == READY)
-    EntropyReady = (EntropySlot ~= nil and myHero:CanUseSpell(EntropySlot) == READY)
-	
-	enemyMinions:update()
-	GetDamages()
 end
-
-function GetDamages()
-    for i = 1, heroManager.iCount do
-        local EnemyDraws = heroManager:getHero(i)
-		if ValidTarget(EnemyDraws) then
-			qDmg = getDmg("Q", EnemyDraws, myHero)
-			wDmg = getDmg("W", EnemyDraws, myHero)
-			AADmg = getDmg("AD", EnemyDraws, myHero)
-			IgniteDmg = getDmg("IGNITE", EnemyDraws, myHero)
-			SheenDmg = getDmg("SHEEN", EnemyDraws, myHero)
-			BWCDmg = getDmg("BWC", EnemyDraws, myHero)
-			TrinityDmg = getDmg("TRINITY", EnemyDraws, myHero)
-			BotrkDmg = getDmg("RUINEDKING", EnemyDraws, myHero)
-			if HydraSlot ~= nil then HydraDmg = AADmg*0.6 end
-			if TiamatSlot ~= nil then TiamatDmg = AADmg*0.6 end
-			if EntropySlot ~= nil then EntropyDmg = 80 end
-			if BotrkReady then
-				AADmg = AADmg + 0.05*EnemyDraws.health
-			end
-		end
-	end
-    ItemsDmg = SheenDmg + BWCDmg + TrinityDmg + BotrkDmg + HydraDmg + TiamatDmg + EntropyDmg
-	Killable = qDmg + wDmg*3 + AADmg*2 + IgniteDmg + ItemsDmg
-end
-
-function KillDraws()
-    for i = 1, heroManager.iCount do
-        local EnemyDraws = heroManager:getHero(i)
-        if ValidTarget(EnemyDraws) then
-            if EnemyDraws.health < IgniteDmg then
-                PrintFloatText(EnemyDraws, 0, "Ignite!")
-            elseif EnemyDraws.health < Killable then
-                PrintFloatText(EnemyDraws, 0, "Kill!")
-            elseif EnemyDraws.health > Killable then
-                PrintFloatText(EnemyDraws, 0, "Harrass!")
-            end
-        end
-    end
-end
-
+ 
 function KSQ()
     for i = 1, heroManager.iCount do
         local Enemy = heroManager:getHero(i)
@@ -188,7 +116,6 @@ function HeroesAround()
     end
 end
 
-
 function getHitBoxRadius(target)
 	return GetDistance(target, target.minBBox)
 end
@@ -207,14 +134,6 @@ function CastREmergency()
 			CastSpell(_R)
         end
     end
-end
-
-function FarmWithW() --Thanks to Skeem
-	for _, minion in pairs(enemyMinions.objects) do
-		if minion ~=nil and minion.health < getDmg("W", minion, myHero) then
-			CastSpell(_W)
-		end
-	end
 end
 
 function OnGainBuff(myHero, buff)
