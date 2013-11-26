@@ -33,7 +33,7 @@ function PluginOnTick()
 		if (AutoCarry.MainMenu.AutoCarry or AutoCarry.MainMenu.MixedMode) then
 			ComboCast()
 		end
-		if QReady and AutoCarry.PluginMenu.Harrass then ProdictQ:EnableTarget(Target, true) end
+		if QReady and AutoCarry.PluginMenu.Harrass then CastQ(Target) end
 	end
 	if AutoCarry.PluginMenu.useR then CastREmergency() end
 	if AutoCarry.PluginMenu.ksQ then KSQ() end
@@ -121,7 +121,7 @@ function getHitBoxRadius(target)
 end
 
 function CastQ(Unit)
-    if GetDistance(Unit) - getHitBoxRadius(Unit)/2 < q1Range and ValidTarget(Unit) then
+    if GetDistance(Unit) - getHitBoxRadius(Unit)/2 < qRange and ValidTarget(Unit) then
         QPos = ProdictQ:GetPrediction(Unit)
         local willCollide = ProdictQCollision:GetMinionCollision(QPos, myHero)
         if not willCollide then CastSpell(_Q, QPos.x, QPos.z) end
