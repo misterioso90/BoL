@@ -91,9 +91,9 @@ function ComboCast()
 	end
 	
 	if WReady and AutoCarry.PluginMenu.useW and myHero.health > (myHero.maxHealth*(AutoCarry.PluginMenu.notW/100)) then 
-		if wUsed == false and HeroesAround() then
+		if wUsed == false and CountEnemyHeroInRange(550) > 1 then
 			CastSpell(_W)
-		elseif not HeroesAround() and wUsed == true then
+		elseif CountEnemyHeroInRange(550) == 0 and wUsed == true then
 			CastSpell(_W)
 		end
 	end
@@ -103,17 +103,6 @@ function ComboCast()
 			CastSpell(_E)
 		end
 	end
-end
-
-function HeroesAround()
-    for i = 1, heroManager.iCount do
-        local Enemy = heroManager:getHero(i)
-        if ValidTarget(Enemy, 550) then
-            return true
-		else 
-			return false
-        end
-    end
 end
 
 function getHitBoxRadius(target)
