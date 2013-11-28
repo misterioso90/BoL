@@ -3,51 +3,57 @@
 
 v1.0 First Release
 v1.1 Orbwalking added
+v1.2 Prodiction fixed, improved code and script
 
 TODO
 
 *Cast W at Allies (AutoShield)
-*Improve Combo Mechanics
-*AutoR
 *Farming
 ]]
 
 require "Prodiction"
 
-if myHero.charName ~= "Galio" then return end
+if myHero.charName ~= "Galio" or not VIP_USER then return end
 
-if not VIP_USER then
-	return
-end
+function Variables()
+	RangeQ = 940
+	WidthQ = 120
+	
+	RangeW = 800
 
---Variables
-local RangeQ = 940
-local WidthQ = 235
+	RangeE = 1180
+	WidthE = 120
 
-local RangeW = 800
+	RangeR = 600
 
-local RangeE = 1180
-local WidthE = 200
+	Prodict = ProdictManager.GetInstance()
+	ProdictQ = Prodict:AddProdictionObject(_Q, RangeQ, 1300, 0.250, WidthQ)
+	ProdictE = Prodict:AddProdictionObject(_E, RangeE, 1200, 0.1, WidthE)
 
-local RangeR = 600
+	QReady, WReady, EReady, RReady = false, false, false, false
+	QMana, WMana, EMana, RMana = 0,0,0,0
 
-local Prodict = ProdictManager.GetInstance()
-local ProdictQ, ProdictE
+	lastAnimation = nil
+	lastAttack = 0
+	lastAttackCD = 0
+	lastWindUpTime = 0
 
-local QAble, WAble, EAble, RAble = false, false, false, false
-local QMana, WMana, EMana, RMana = 0,0,0,0
-
-local lastAnimation = nil
-local lastAttack = 0
-local lastAttackCD = 0
-local lastWindUpTime = 0
-
-local IgniteSlot = nil
-
-local ts = {}
-
-local GalioConfig = {}
-local items =
+	IgniteSlot = nil
+	
+	enemyHeroes = GetEnemyHeroes()
+	enemyMinions = minionManager(MINION_ENEMY, RangeQ, player, MINION_SORT_HEALTH_ASC)
+	
+	ts = TargetSelector(TARGET_NEAR_MOUSE, 1300, DAMAGE_MAGIC)
+	ts.name = "Galio"
+	
+	LastTickChecked = 0
+	LastHealthChecked = 0
+	
+	HKQ = string.byte("X")
+	HKE = string.byte("C")
+	HKCombo = string.byte("T")
+	
+	items =
 	{
 		BRK = {id=3153, range = 500, reqTarget = true, slot = nil },
 		BFT = {id=3188, range = 750, reqTarget = true, slot = nil },
@@ -60,151 +66,226 @@ local items =
         YGB = {id=3142, range = 350, reqTarget = false, slot = nil}
 	}
 	
+	qDmg,eDmg,dfgDmg,rDmg,IgniteDmg = 0,0,0,0,0
+	ComboQE, FullCombo = 0, 0
+	
+	DFGSlot = nil
+	
+	Ult = false
+	idolbuff = false
+	
+end
+	
 
 --Main Code
 function OnLoad()
+	Variables()
 	CheckIgnite()
-	ts = TargetSelector(TARGET_LESS_CAST, RangeE+150, DAMAGE_MAGIC)
+	Menu()
 	
-	GalioConfig = scriptConfig("Galio Options", "GalioCONFIG1.1")
+	PrintChat(">> Galibot the Gatekeeper 1.2 loaded")
+end
+
+function Menu()
+	GalioConfig = scriptConfig("Galio Options", "GalioCONFIG1.2")
 	
-	local HKQ = string.byte("X")
-	local HKE = string.byte("C")
-	local HKCombo = string.byte("T")
-	
+	GalioConfig:addParam("sep", "----- [ General Settings ] -----", SCRIPT_PARAM_INFO, "")
 	GalioConfig:addParam("Q", "Cast Q", SCRIPT_PARAM_ONKEYDOWN, false, HKQ)
 	GalioConfig:addParam("E", "Cast E", SCRIPT_PARAM_ONKEYDOWN, false, HKE)
-	GalioConfig:addParam("Combo", "Cast Combo", SCRIPT_PARAM_ONKEYDOWN, false, HKCombo)
-	--GalioConfig:addParam("CharNum", "AutoR when X enemies in range", SCRIPT_PARAM_SLICE, 1, 1, 5, 0)
-	--GalioConfig:addParam("AllyNum", "AutoR when X allies near", SCRIPT_PARAM_SLICE, 1, 0, 5, 0)
-	GalioConfig:addParam("UseQ", "Use Q at Combo", SCRIPT_PARAM_ONOFF, true)
-	GalioConfig:addParam("UseW", "Use W at Combo", SCRIPT_PARAM_ONOFF, true)
-	GalioConfig:addParam("UseE", "Use E at Combo", SCRIPT_PARAM_ONOFF, true)
-	--GalioConfig:addParam("UseR", "Use R at Combo", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("anticassio", "Anti Cassio Shield", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:addParam("KSq", "AutoKS with Q", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:addParam("KSe", "AutoKS with E", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:addParam("Ignite", "AutoIgnite KS", SCRIPT_PARAM_ONOFF, true)
-	GalioConfig:addParam("draws", "Draw Circles", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:addParam("UseOrbwalk", "Use Orbwalk", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("sep", "----- [ Combo Settings ] -----", SCRIPT_PARAM_INFO, "")
+	GalioConfig:addParam("Combo", "Cast Combo", SCRIPT_PARAM_ONKEYDOWN, false, HKCombo)
+	GalioConfig:addParam("UseQ", "Use Q at Combo", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("UseW", "Use W at Combo", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("UseE", "Use E at Combo", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("UseR", "Use R at Combo", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("CharNum", "AutoR when X enemies in range", SCRIPT_PARAM_SLICE, 1, 1, 5, 0)
+	GalioConfig:addParam("AllyNum", "AutoR when X allies near", SCRIPT_PARAM_SLICE, 1, 0, 4, 0)
+	GalioConfig:addParam("sep", "----- [ Draws Settings ] -----", SCRIPT_PARAM_INFO, "")
+	GalioConfig:addParam("draws", "Draw Circles", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("texts", "Draw Kill Text", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("farming", "Draw Killable minions", SCRIPT_PARAM_ONOFF, true)
+	GalioConfig:addParam("ultonenemies", "Draw Ult on Enemies", SCRIPT_PARAM_ONOFF, true)
 	GalioConfig:permaShow("Q")
 	GalioConfig:permaShow("E")
 	GalioConfig:permaShow("Combo")
-	--GalioConfig:permaShow("UseR")
+	GalioConfig:permaShow("UseR")
 	GalioConfig:addTS(ts)
-	
-	ts.name = "Galio"
-	
-	ProdictQ = Prodict:AddProdictionObject(_Q, RangeQ, 1000, 0.1, WidthQ, myHero, CastQ)
-	ProdictE = Prodict:AddProdictionObject(_E, RangeE, 1000, 0.1, WidthE, myHero, CastE)
-	
-	PrintChat(">> Galibot the Gatekeeper 1.1 loaded")
 end
+
 
 function OnTick()
 	Checks()
-	ts:update()
 	AutoIgniteKS()
-	if GalioConfig.KSe then
-		KSe()
+	if GalioConfig.KSe then	KSe() end
+	if GalioConfig.KSq then	KSq() end
+	if IsKeyDown((HKQ or HKE)) then moveToCursor() end
+	if ValidTarget(ts.target) then
+		if GalioConfig.Q then
+			CastQ(ts.target)
+		end
+		if GalioConfig.E then
+			CastE(ts.target)
+		end
+		if GalioConfig.Combo then
+			ComboCast(ts.target)
+		end
 	end
-	if GalioConfig.KSq then
-		KSq()
-	end
-	if IsKeyDown(GetKey("C")) or IsKeyDown(GetKey("X")) then
-		moveToCursor()
-	end
-	if ts.target ~= nil and GalioConfig.Q then
-		ProdictQ:EnableTarget(ts.target, true)
-	end
-	if ts.target ~= nil and GalioConfig.E then
-		ProdictE:EnableTarget(ts.target, true)
-	end
-	if GalioConfig.UseOrbwalk and IsKeyDown(GetKey("T")) then
-		if ts.target ~= nil then
+	if GalioConfig.UseOrbwalk and IsKeyDown(HKCombo) then
+		if ValidTarget(ts.target) then
 			OrbWalking(ts.target)
 		else
 			moveToCursor()
 		end
 	end
-	if ts.target ~= nil and GalioConfig.Combo then
-		ComboCast(ts.target)
-		--if GalioConfig.UseR and CountEnemyHeroInRange(RangeR) >= GalioConfig.CharNum then
-		--	CastSpell(_R)
-		--end
+	
+	if LastTickChecked <= GetTickCount() - 500 then
+		LastHealthChecked = myHero.health
+		LastTickChecked = GetTickCount()
+	end
+	if GalioConfig.anticassio then VSCassio() end
+	if Ult then
+		if not idolbuff then Ult = false end
 	end
 end
 
 function OnDraw()
 	if GalioConfig.draws then
-		if ts.target ~= nil then
+		if ValidTarget(ts.target, RangeE+150) then
 			local dist = getHitBoxRadius(ts.target)/2
 			
 			if GetDistance(ts.target) - dist < RangeQ then
 				DrawCircle(ts.target.x, ts.target.y, ts.target.z, dist, 0x7F006E)
 			end
+			
 			if GetDistance(ts.target) - dist < RangeE then
 				DrawCircle(ts.target.x, ts.target.y, ts.target.z, dist, 0x5F9F9F)
 			end
 		end
-		if QAble then
+		if QReady then
 			DrawCircle(myHero.x, myHero.y, myHero.z, RangeQ, 0xFFFFFF)
 		end
-		if WAble then
+		if WReady then
 			DrawCircle(myHero.x, myHero.y, myHero.z, RangeW, 0x7F006E)
 		end
-		if EAble then
+		if EReady then
 			DrawCircle(myHero.x, myHero.y, myHero.z, RangeE, 0x99FF00)
 		end
-		if RAble then
+		if RReady then
 			DrawCircle(myHero.x, myHero.y, myHero.z, RangeR, 0xCCFF00)
-			for i = 1, heroManager.iCount do
-				local Enemy = heroManager:getHero(i)
-				if Enemy.team ~= myHero.team and DistanceToHit(Enemy) < RangeR then
-					PrintFloatText(Enemy, 0, "ULT")
-					DrawCircle(Enemy.x, Enemy.y, Enemy.z, 120, 0x00FF00)
-					DrawCircle(Enemy.x, Enemy.y, Enemy.z, 130, 0x00FF00)
-					DrawCircle(Enemy.x, Enemy.y, Enemy.z, 140, 0x00FF00)
+			if GalioConfig.ultonenemies then
+				for i = 1, heroManager.iCount do
+					local Enemy = heroManager:getHero(i)
+					if Enemy.team ~= myHero.team and DistanceToHit(Enemy) < RangeR then
+						PrintFloatText(Enemy, 0, "ULT")
+						DrawCircle(Enemy.x, Enemy.y, Enemy.z, 120, 0x00FF00)
+						DrawCircle(Enemy.x, Enemy.y, Enemy.z, 130, 0x00FF00)
+						DrawCircle(Enemy.x, Enemy.y, Enemy.z, 140, 0x00FF00)
+					end
+				end
+			end
+		end
+	end
+	if GalioConfig.texts then KillDraws() end
+	if GalioConfig.farming then 
+		for _, Enemy in pairs(enemyMinions.objects) do
+			if ValidTarget(Enemy, RangeE) then
+				QKILL = math.ceil(Enemy.health/getDmg("Q",Enemy,myHero))
+				if QKILL < 2 and QReady then
+					DrawText3D("Q", Enemy.x, Enemy.y, Enemy.z, 23, RGB(255,0,0), true)
 				end
 			end
 		end
 	end
 end
 
+function GetDamages()
+	for i = 1, heroManager.iCount do
+		local Enemy = heroManager:getHero(i)
+		qDmg = getDmg("Q", Enemy, myHero)
+		eDmg = getDmg("E", Enemy, myHero)
+		dfgDmg = getDmg("DFG", Enemy, myHero)
+		rDmg = getDmg("R", Enemy, myHero)
+		IgniteDmg = getDmg("IGNITE", Enemy, myHero)
+	end
+	ComboQE = qDmg + eDmg
+	FullCombo = qDmg + eDmg + dfgDmg + rDmg
+end
+
+function KillDraws()
+	for i = 1, heroManager.iCount do
+		local Enemy = heroManager:getHero(i)
+		if ValidTarget(Enemy) then
+			if Enemy.health < qDmg then
+				PrintFloatText(Enemy, 0, "Q to Kill")
+			elseif Enemy.health < ComboQE then
+				PrintFloatText(Enemy, 0, "Q+E to Kill")
+			elseif Enemy.health < FullCombo then
+				PrintFloatText(Enemy, 0, "Full Combo to kill")
+			elseif Enemy.health > FullCombo then
+				PrintFloatText(Enemy, 0, "Harrass!")
+			end
+		end
+	end
+end
 --Added functions, code...
 
--- function GetAllies()
-	-- local NumAllies = 0
-	-- for i = 1, heroManager.iCount do
-		-- local Enemy = heroManager:getHero(i)
-		-- if Enemy.team ~= myHero.team and DistanceToHit(Enemy) < RangeR then
-			-- --Get number. GetAllyHeroes() could help here.
-		-- end
-	-- end
--- end
-
--- function GetEnemies()
-	-- local NumEnemies = 0
-	-- for i = 1, heroManager.iCount do
-		-- local Ally = heroManager:getHero(i)
-		-- if Ally.team == myHero.team and DistanceToHit(Ally) < RangeR+300 then
-			-- --Get number. GetEnemyHeroes() could help here.
-		-- end
-	-- end
--- end
+function CountAllyHeroInRange(range)
+    local allyInRange = 0
+    for i = 1, heroManager.iCount, 1 do
+        local hero = heroManager:getHero(i)
+        if ValidTarget(hero, range, true) and hero.team == myHero.team then
+            allyInRange = allyInRange + 1
+        end
+    end
+    return allyInRange
+end
 
 function ComboCast(Target)
 	UseItems(Target)
-	if QAble and GalioConfig.UseQ and DistanceToHit(Target) <RangeQ and myHero.mana >= QMana then
-		ProdictQ:EnableTarget(Target, true)
+	if QReady and GalioConfig.UseQ and DistanceToHit(Target) <RangeQ and myHero.mana >= QMana then
+		CastQ(Target)
 	end
 	
-	if EAble and GalioConfig.UseE and DistanceToHit(Target) <RangeE and myHero.mana >= EMana then
-		ProdictE:EnableTarget(Target, true)
+	if EReady and GalioConfig.UseE and DistanceToHit(Target) <RangeE and myHero.mana >= EMana then
+		CastE(Target)
 	end
 	
-	if WAble and GalioConfig.UseW and myHero.mana >= WMana then
-		CastSpell(_W, myHero)
+	if WReady and GalioConfig.UseW and myHero.mana >= WMana then
+		if LastHealthChecked > myHero.health then
+			CastSpell(_W)
+		end
 	end
+	if RReady and GalioConfig.UseR then
+		if CountEnemyHeroInRange(RangeR) >= GalioConfig.CharNum and CountAllyHeroInRange(RangeR+300) >= GalioConfig.AllyNum then
+			CastSpell(_R)
+			Ult = true
+		end
+	end
+end
+
+function VSCassio()
+	for _,enemy in pairs(enemyHeroes) do
+		if enemy.charName == "Cassiopeia" and isPoisoned(myHero) then
+			CastSpell(_W, myHero)
+		end
+	end
+end
+
+function isPoisoned(target)
+	for i = 1, target.buffCount, 1 do
+		local tBuff = target:getBuff(i)
+		if BuffIsValid(tBuff) then
+			if tBuff.name:lower():find("poison") then
+				return true
+			end
+		end
+	end
+	return false
 end
 
 function CheckIgnite()
@@ -222,23 +303,25 @@ function DistanceToHit(Target)
 	return Distance
 end
 
-function CastE(unit, pos)
-	if GetDistance(pos) - getHitBoxRadius(unit)/2 < RangeE then
-		CastSpell(_E, pos.x, pos.z)
+function CastE(unit)
+	if DistanceToHit(unit) < RangeE and ValidTarget(unit, RangeE) then
+		EPos = ProdictE:GetPrediction(unit)
+		CastSpell(_E, EPos.x, EPos.z)
 	end
 end
 
-function CastQ(unit, pos)
-	if GetDistance(pos) - getHitBoxRadius(unit)/2 < RangeQ then
-		CastSpell(_Q, pos.x, pos.z)
+function CastQ(unit)
+	if DistanceToHit(unit) < RangeQ and ValidTarget(unit, RangeQ) then
+		QPos = ProdictQ:GetPrediction(unit)
+		CastSpell(_Q, QPos.x, QPos.z)
 	end
 end
 
 function KSq()
     for i = 1, heroManager.iCount do
 		local Enemy = heroManager:getHero(i)
-		if QAble and ValidTarget(Enemy, 1100, true) and Enemy.health < getDmg("Q",Enemy,myHero) - 50 then
-			ProdictQ:EnableTarget(Enemy, true)
+		if QReady and ValidTarget(Enemy, RangeQ, true) and Enemy.health < getDmg("Q",Enemy,myHero) - 50 then
+			CastQ(Enemy)
 		end
     end
 end
@@ -246,27 +329,34 @@ end
 function KSe()
     for i = 1, heroManager.iCount do
 		local Enemy = heroManager:getHero(i)
-		if QAble and ValidTarget(Enemy, 1200, true) and Enemy.health < getDmg("E",Enemy,myHero) - 50 then
-			ProdictQ:EnableTarget(Enemy, true)
+		if EReady and ValidTarget(Enemy, RangeE, true) and Enemy.health < getDmg("E",Enemy,myHero) - 50 then
+			CastE(Enemy)
 		end
     end
 end
 
 function Checks()
-	QAble = (myHero:CanUseSpell(_Q) == READY)
-	WAble = (myHero:CanUseSpell(_W) == READY)
-	EAble = (myHero:CanUseSpell(_E) == READY)
-	RAble = (myHero:CanUseSpell(_R) == READY)
-	if IgniteSlot ~= nil then IgniteAble = (myHero:CanUseSpell(IgniteSlot) == READY) end
+	QReady = (myHero:CanUseSpell(_Q) == READY)
+	WReady = (myHero:CanUseSpell(_W) == READY)
+	EReady = (myHero:CanUseSpell(_E) == READY)
+	RReady = (myHero:CanUseSpell(_R) == READY)
+	if IgniteSlot ~= nil then IgniteReady = (myHero:CanUseSpell(IgniteSlot) == READY) end
 	
 	QMana = myHero:GetSpellData(_Q).mana
 	WMana = myHero:GetSpellData(_W).mana
 	EMana = myHero:GetSpellData(_E).mana
 	RMana = myHero:GetSpellData(_R).mana
+	
+	DFGSlot = GetInventorySlotItem(3128)
+	
+	ReadyDFG = (DFGSlot ~= nil and myHero:CanUseSpell(DFGSlot) == READY)
+	GetDamages()
+	enemyMinions:update()
+	ts:update()
 end
 
 function UseItems(target)
-    if target == nil then return end
+    if not ValidTarget(target) then return end
     for _,item in pairs(items) do
         item.slot = GetInventorySlotItem(item.id)
         if item.slot ~= nil then
@@ -282,7 +372,7 @@ function UseItems(target)
 end
 
 function AutoIgniteKS()
-	if GalioConfig.Ignite and IgniteAble then
+	if GalioConfig.Ignite and IgniteReady then
 		IgniteDMG = 50 + (20 * myHero.level)
 		for _, Enemy in pairs(GetEnemyHeroes()) do
 			if ValidTarget(Enemy, 600) and Enemy.health <= IgniteDMG then
@@ -295,14 +385,11 @@ end
 --Based on Manciuzz Orbwalker http://pastebin.com/jufCeE0e
 
 function OrbWalking(Target)
-	--if GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
-		if TimeToAttack() and GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
-			myHero:Attack(Target)
-		elseif heroCanMove() then
-			moveToCursor()
-		end
---	elseif GetDistance(Target) >= myHero.range + GetDistance(myHero.minBBox) or Target == nil then moveToCursor()
-	--end
+	if TimeToAttack() and GetDistance(Target) <= myHero.range + GetDistance(myHero.minBBox) then
+		myHero:Attack(Target)
+	elseif heroCanMove() then
+		moveToCursor()
+	end
 end
 
 function TimeToAttack()
@@ -332,4 +419,26 @@ end
 
 function OnAnimation(unit,animationName)
         if unit.isMe and lastAnimation ~= animationName then lastAnimation = animationName end
+end
+
+function OnSendPacket(p)
+	if Ult then
+		packet = Packet(p)
+		packetName = Packet(p):get('name')
+		if packetName == 'S_MOVE' or packetName == 'S_CAST' then
+			packet:block()
+		end
+	end
+end
+
+function OnGainBuff(hero, buff)
+	if hero == myHero and buff.name == "GalioIdolOfDurand" then
+		idolbuff = true
+	end
+end
+
+function OnLoseBuff(hero, buff)
+	if hero == myHero and buff.name == "GalioIdolOfDurand" then
+		idolbuff = false
+	end
 end
