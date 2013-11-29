@@ -12,6 +12,8 @@ function OnLoad()
 	autostokill = 0
 	RGBRED = RGB(255,0,0)
 	RGBGREY = RGB(255,255,255)
+	RGBYELLOW = RGB(255,215,0)
+	RGBGREEN = RGB(124,252,0)
 end
 
 function OnTick()
@@ -32,7 +34,9 @@ end
 function Color()
 	if autostokill < 2 then
 		return RGBRED
-	else
-		return RGBGREY
+	elseif autostokill > 1 and autostokill < 4 then
+		return RGBYELLOW
+	elseif autostokill > 3 then
+		return RGBGREEN
 	end
 end
